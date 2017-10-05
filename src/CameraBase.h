@@ -13,6 +13,7 @@
 #define CAMERABASE_H_
 
 #include <string>
+#include <vector>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/interprocess/ipc/message_queue.hpp>
 #include <boost/smart_ptr.hpp>
@@ -20,10 +21,9 @@
 #include <boost/format.hpp>
 #include <boost/signals2.hpp>
 
-using namespace std;
 using namespace boost::posix_time;
-
-typedef boost::shared_array<unsigned short> usintarr;
+using std::vector;
+using std::string;
 
 struct ROI {// ROI区, XY坐标起始点为(1,1)
 	int xstart, ystart;		// ROI区左上角在全幅中的位置
@@ -48,29 +48,29 @@ public:
 };
 
 struct devcam_info {// 相机设备基本信息
-	string errmsg;		//< 错误提示
-	string model;		//< 相机型号
-	bool connected;		//< 与相机连接标志
-	bool cooling;		//< 制冷启动标志
-	bool exposing;		//< 曝光过程标志
-	int wsensor;		//< 图像宽度, 量纲: 像素
-	int hsensor;		//< 图像高度, 量纲: 像素
-	int readport;		//< 读出端口档位
-	int readrate;		//< 读出速度档位
-	int gain;			//< 增益档位
-	double coolerset;	//< 制冷温度
-	double coolerget;	//< 芯片温度
-	ROI roi;			//< 有效ROI区
-	double eduration;	//< 曝光时间, 量纲: 秒
-	string dateobs;		//< 曝光起始时间对应的日期, 格式: CCYY-MM-DD
-	string timeobs;		//< 曝光起始时间对应的时间, 格式: hh:mm:ss.ssssss
-	string timeend;		//< 曝光结束时间对应的时间, 格式: hh:mm:ss.ssssss
-	ptime tmobs;		//< 曝光起始时间, 用于监测曝光进度
-	double jd;			//< 曝光起始时间对应的儒略日
-	string utcdate;		//< 曝光起始日期, 用于生成文件存储目录名, 格式: YYMMDD
-	string utctime;		//< 曝光起始时间, 用于生成文件名, 格式: YYMMDDThhmmssss
-	bool   ampm;		//< true: A.M.; false: P.M.
-	usintarr data;		//< 图像数据存储区
+	std::string errmsg;		//< 错误提示
+	std::string model;		//< 相机型号
+	bool connected;			//< 与相机连接标志
+	bool cooling;			//< 制冷启动标志
+	bool exposing;			//< 曝光过程标志
+	int wsensor;			//< 图像宽度, 量纲: 像素
+	int hsensor;			//< 图像高度, 量纲: 像素
+	uint32_t readport;		//< 读出端口档位
+	uint32_t readrate;		//< 读出速度档位
+	uint32_t gain;			//< 增益档位
+	double coolerset;		//< 制冷温度
+	double coolerget;		//< 芯片温度
+	ROI roi;				//< 有效ROI区
+	double eduration;		//< 曝光时间, 量纲: 秒
+	std::string dateobs;	//< 曝光起始时间对应的日期, 格式: CCYY-MM-DD
+	std::string timeobs;	//< 曝光起始时间对应的时间, 格式: hh:mm:ss.ssssss
+	std::string timeend;	//< 曝光结束时间对应的时间, 格式: hh:mm:ss.ssssss
+	ptime tmobs;			//< 曝光起始时间, 用于监测曝光进度
+	double jd;				//< 曝光起始时间对应的儒略日
+	std::string utcdate;	//< 曝光起始日期, 用于生成文件存储目录名, 格式: YYMMDD
+	std::string utctime;	//< 曝光起始时间, 用于生成文件名, 格式: YYMMDDThhmmssss
+	bool   ampm;			//< true: A.M.; false: P.M.
+	boost::shared_array<uint8_t> data;	//< 图像数据存储区
 
 public:
 	virtual ~devcam_info() {
@@ -85,16 +85,7 @@ public:
 
 	void end_expose() {
 		ptime now = microsec_clock::universal_time();
-		ptime::time_duration_type time = now.time_of_day();
-		/* May 27, 2017
-		 * TIME-OBS和TIME-END格式由hh:mm:ss.ssssss变更为hh:mm:ss.sss.
-		 * 即记录到毫秒
-		 */
-		boost::format fmt("%02d:%02d:%06.3f");
-		fmt % (time.hours()) % (time.minutes())
-				% (time.seconds() + time.fractional_seconds() * 1E-6);
-		timeend = fmt.str();
-//		timeend = to_simple_string(now.time_of_day());
+		timeend = to_simple_string(now.time_of_day());
 		exposing = false;
 	}
 
@@ -117,11 +108,7 @@ public:
 				% (time.minutes())
 				% (time.seconds() * 100 + time.fractional_seconds() / 10000);
 		utctime = fmttime.str();
-//		timeobs = to_simple_string(time);
-		boost::format fmt("%02d:%02d:%06.3f");
-		fmt % (time.hours()) % (time.minutes())
-				% (time.seconds() + time.fractional_seconds() * 1E-6);
-		timeobs = fmt.str();
+		timeobs = to_simple_string(time);
 
 		double fd = time.total_microseconds() * 1E-6 / 86400.0;
 		jd = date.julian_day() + fd - 0.5;
@@ -167,13 +154,11 @@ public:
 protected:
 	/* 声明数据类型 */
 	typedef boost::shared_ptr<boost::thread> threadptr;
-	typedef boost::interprocess::message_queue msgque;
-	typedef boost::mutex::scoped_lock mutex_lock;
+	typedef boost::unique_lock<boost::mutex> mutex_lock;
 
 	/* 声明成员变量 */
 	boost::shared_ptr<devcam_info> nfcam_;	//< 相机基本信息
-	string quename_;						//< 消息队列名称
-	boost::shared_ptr<msgque> queue_;		//< 消息队列
+	boost::condition_variable condexp_;		//< 通知曝光开始
 	ExposeProcess exposeproc_;				//< 曝光进度回调函数
 	threadptr thrdIdle_;	//< 线程: 空闲时监测温度
 	threadptr thrdExpose_;	//< 线程: 监测曝光进度和结果
@@ -187,6 +172,12 @@ public:
 
 public:
 	boost::shared_ptr<devcam_info> GetCameraInfo();
+	/*!
+	 * @brief 相机连接标志
+	 * @return
+	 * 是否已经建立与相机连接标志
+	 */
+	bool IsConnected();
 	/*!
 	 * @brief 尝试连接相机
 	 * @return
@@ -207,17 +198,17 @@ public:
 	 * @brief 设置读出端口
 	 * @param index 读出端口档位
 	 */
-	void SetReadPort(int index);
+	void SetReadPort(uint32_t index);
 	/*!
 	 * @brief 设置读出速度
 	 * @param index 读出速度档位
 	 */
-	void SetReadRate(int index);
+	void SetReadRate(uint32_t index);
 	/*!
 	 * @brief 设置增益
 	 * @param index 增益档位
 	 */
-	void SetGain(int index);
+	void SetGain(uint32_t index);
 	/*!
 	 * @brief 设置ROI区域
 	 * @param xbin   X轴合并因子
@@ -228,6 +219,11 @@ public:
 	 * @param height 高度
 	 */
 	void SetROI(int xbin = 1, int ybin = 1, int xstart = 1, int ystart = 1, int width = -1, int height = -1);
+	/*!
+	 * @brief 设置本底基准值
+	 * @param offset 基准值
+	 */
+	void SetADCOffset(uint16_t offset);
 	/*!
 	 * @brief 尝试启动曝光流程
 	 * @param duration  曝光周期, 量纲: 秒
@@ -250,6 +246,35 @@ protected:
 	 * @brief 曝光线程, 监测曝光进度和结果
 	 */
 	void ThreadExpose();
+	/*!
+	 * @brief 统一线程结束操作
+	 * @param thrd 线程接口
+	 */
+	void ExitThread(threadptr &thrd);
+
+public:
+	/* 虚函数, 继承类实现 */
+	/*!
+	 * @brief 更改相机IP地址
+	 * @param ip 新的IP地址
+	 * @return
+	 * 更改后IP地址
+	 */
+	virtual const char *SetIP(const char *ip);
+	/*!
+	 * @brief 更改相机子网掩码
+	 * @param mask 新的子网掩码
+	 * @return
+	 * 更改后子网掩码
+	 */
+	virtual const char *SetNetmask(const char *mask);
+	/*!
+	 * @brief 更改相机网关
+	 * @param gateway 新的网关
+	 * @return
+	 * 更改后网关
+	 */
+	virtual const char *SetGateway(const char *gateway);
 
 protected:
 	/* 纯虚函数, 继承类实现 */
@@ -273,17 +298,17 @@ protected:
 	 * @brief 设置读出端口
 	 * @param index 读出端口档位
 	 */
-	virtual void UpdateReadPort(int& index) = 0;
+	virtual void UpdateReadPort(uint32_t& index) = 0;
 	/*!
 	 * @brief 设置读出速度
 	 * @param index 读出速度档位
 	 */
-	virtual void UpdateReadRate(int& index) = 0;
+	virtual void UpdateReadRate(uint32_t& index) = 0;
 	/*!
 	 * @brief 设置增益
 	 * @param index 增益档位
 	 */
-	virtual void UpdateGain(int& index) = 0;
+	virtual void UpdateGain(uint32_t& index) = 0;
 	/*!
 	 * @brief 更新ROI区域
 	 * @param xbin   X轴合并因子
@@ -294,6 +319,11 @@ protected:
 	 * @param height 高度
 	 */
 	virtual void UpdateROI(int& xbin, int& ybin, int& xstart, int& ystart, int& width, int& height) = 0;
+	/*!
+	 * @brief 自动调整偏置电压, 使得本底值尽可能接近offset
+	 * @param offset 本底平均期望值
+	 */
+	virtual void UpdateADCOffset(uint16_t offset) = 0;
 	/*!
 	 * @brief 查看相机芯片温度
 	 * @return

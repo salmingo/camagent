@@ -5,11 +5,13 @@
  * @author Xiaomeng Lu
  */
 
+#include <boost/make_shared.hpp>
 #include "CameraBase.h"
+
+using namespace std;
 
 CameraBase::CameraBase() {
 	nfcam_ = boost::make_shared<devcam_info>();
-	quename_ = "mq_camera_queue";
 }
 
 CameraBase::~CameraBase() {
@@ -25,6 +27,10 @@ void CameraBase::register_expose(const ExposeProcess::slot_type& slot) {
 	exposeproc_.connect(slot);
 }
 
+bool CameraBase::IsConnected() {
+	return nfcam_->connected;
+}
+
 bool CameraBase::Connect() {
 	if (nfcam_->connected) return true;
 	if (!OpenCamera()) return false;
@@ -33,11 +39,8 @@ bool CameraBase::Connect() {
 	nfcam_->connected = true;
 	nfcam_->roi.reset(nfcam_->wsensor, nfcam_->hsensor);
 	n = nfcam_->roi.get_width() * nfcam_->roi.get_height();
-	n = (n + 15) & ~15;	// 长度对准16字节
-	nfcam_->data.reset(new unsigned short[n]);
-	// 消息队列, 用于启动和阻塞曝光线程
-	msgque::remove(quename_.c_str());
-	queue_.reset(new msgque(boost::interprocess::create_only, quename_.c_str(), 16, sizeof(int)));
+	n = (n * 2 + 15) & ~15;	// 长度对准16字节
+	nfcam_->data.reset(new uint8_t[n]);
 	// 线程
 	thrdIdle_.reset(new boost::thread(boost::bind(&CameraBase::ThreadIdle, this)));
 	thrdExpose_.reset(new boost::thread(boost::bind(&CameraBase::ThreadExpose, this)));
@@ -47,22 +50,9 @@ bool CameraBase::Connect() {
 
 void CameraBase::Disconnect() {
 	if (!nfcam_->connected) return;
-	// 终止线程1
-	if (thrdIdle_.unique()) {
-		thrdIdle_->interrupt();
-		thrdIdle_->join();
-		thrdIdle_.reset();
-	}
-	// 终止线程2
-	if (thrdExpose_.unique()) {
-		int stop(0);
-		queue_->send(&stop, sizeof(int), 1);
-		thrdExpose_->interrupt();
-		thrdExpose_->join();
-		thrdExpose_.reset();
-	}
+	ExitThread(thrdIdle_);
+	ExitThread(thrdExpose_);
 
-	msgque::remove(quename_.c_str());
 	SetCooler(0.0, false);
 	CloseCamera();
 	nfcam_->connected = false;
@@ -76,21 +66,21 @@ void CameraBase::SetCooler(double coolerset, bool onoff) {
 	nfcam_->cooling   = onoff;
 }
 
-void CameraBase::SetReadPort(int index) {
+void CameraBase::SetReadPort(uint32_t index) {
 	if (!nfcam_->connected || nfcam_->exposing) return ;
 
 	UpdateReadPort(index);
 	nfcam_->readport = index;
 }
 
-void CameraBase::SetReadRate(int index) {
+void CameraBase::SetReadRate(uint32_t index) {
 	if (!nfcam_->connected || nfcam_->exposing) return ;
 
 	UpdateReadRate(index);
 	nfcam_->readrate = index;
 }
 
-void CameraBase::SetGain(int index) {
+void CameraBase::SetGain(uint32_t index) {
 	if (!nfcam_->connected || nfcam_->exposing) return ;
 
 	UpdateGain(index);
@@ -135,17 +125,23 @@ void CameraBase::SetROI(int xbin, int ybin, int xstart, int ystart, int width, i
 	if (roi.ystart != ystart) roi.ystart = ystart;
 	if (roi.width != width)   roi.width = width;
 	if (roi.height != height) roi.height = height;
-	newn = (roi.get_width() * roi.get_height() + 15) & ~15;
-	if (oldn != newn) nfcam_->data.reset(new unsigned short[newn]);
+	newn = (roi.get_width() * roi.get_height() * 2 + 15) & ~15;
+	if (oldn != newn) nfcam_->data.reset(new uint8_t[newn]);
+}
+
+void CameraBase::SetADCOffset(uint16_t offset) {
+	if (!nfcam_->connected || nfcam_->exposing) return;
+	nfcam_->exposing = true;
+	UpdateADCOffset(offset);
+	nfcam_->exposing = false;
 }
 
 bool CameraBase::Expose(double duration, bool light) {
 	if (!nfcam_->connected || nfcam_->exposing) return false;
 	if (!StartExpose(duration, light)) return false;
 
-	int start(1);
 	nfcam_->begin_expose(duration);
-	queue_->send(&start, sizeof(int), 1);
+	condexp_.notify_one();
 	nfcam_->format_utc();
 	nfcam_->check_ampm();
 
@@ -167,32 +163,49 @@ void CameraBase::ThreadIdle() {
 }
 
 void CameraBase::ThreadExpose() {
-	int msg;
-	msgque::size_type recvd_size;
-	msgque::size_type msg_size = sizeof(int);
-	unsigned int priority;
+	boost::mutex mtx;    // 哑元
+	mutex_lock lck(mtx);
 	boost::chrono::milliseconds duration;	// 等待周期
 	double left, percent;
 	int status, ms;
 
-	do {
-		queue_->receive((void*) &msg, msg_size, recvd_size, priority);
-		if (msg) {// 监测曝光过程
-			while ((status = CameraState()) == 1) {
-				nfcam_->check_expose(left, percent);
-				if (left > 1.0) ms = 1000;
-				else ms = int(left * 1000);
-				duration = boost::chrono::milliseconds(ms);
+	while (true) {
+		condexp_.wait(lck);
+		while ((status = CameraState()) == 1) {// 监测曝光过程
+			nfcam_->check_expose(left, percent);
+			if (left > 0.1) ms = 100;
+			else ms = int(left * 1000);
+			duration = boost::chrono::milliseconds(ms);
 
-				exposeproc_(left, percent, 0);
-				if (ms > 0) boost::this_thread::sleep_for(duration);
-			}
-			if (status == 2) {
-				nfcam_->end_expose();
-				DownloadImage();
-			}
-			nfcam_->exposing = false;
-			exposeproc_(0.0, 100.001, status == 2 ? 1 : -1);
+			exposeproc_(left, percent, 2);
+			if (ms > 0) boost::this_thread::sleep_for(duration);
 		}
-	} while(msg);
+		if (status == 2) {
+			nfcam_->end_expose();
+			exposeproc_(0.0, 100.0, 2);
+			DownloadImage();
+		}
+		nfcam_->exposing = false;
+		exposeproc_(0.0, 100.001, status == 2 ? 1 : -1);
+	}
+}
+
+void CameraBase::ExitThread(threadptr &thrd) {
+	if (thrd.unique()) {
+		thrd->interrupt();
+		thrd->join();
+		thrd.reset();
+	}
+}
+
+const char *CameraBase::SetIP(const char *ip) {
+	return NULL;
+}
+
+const char *CameraBase::SetNetmask(const char *mask) {
+	return NULL;
+}
+
+const char *CameraBase::SetGateway(const char *gateway) {
+	return NULL;
 }

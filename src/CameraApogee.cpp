@@ -35,7 +35,7 @@ bool CameraApogee::OpenCamera() {
 		if (altacam_->IsConnected()) {
 			// 相机初始状态为Status_Flushing时, 才可以正确启动曝光流程
 			do {// 尝试多次初始化
-				if (cout) boost::this_thread::sleep_for(duration);
+				if (count) boost::this_thread::sleep_for(duration);
 				altacam_->Init();
 			} while(++count <= 10 && CameraState() > 0);
 
@@ -86,15 +86,15 @@ void CameraApogee::CoolerOnOff(double& coolerset, bool& onoff) {
 	}
 }
 
-void CameraApogee::UpdateReadPort(int& index) {
+void CameraApogee::UpdateReadPort(uint32_t& index) {
 	//...
 }
 
-void CameraApogee::UpdateReadRate(int& index) {
+void CameraApogee::UpdateReadRate(uint32_t& index) {
 	//...
 }
 
-void CameraApogee::UpdateGain(int& index) {
+void CameraApogee::UpdateGain(uint32_t& index) {
 	//...
 }
 
@@ -123,6 +123,10 @@ void CameraApogee::UpdateROI(int& xbin, int& ybin, int& xstart, int& ystart, int
 	}
 }
 
+void CameraApogee::UpdateADCOffset(uint16_t offset) {
+	//...
+}
+
 double CameraApogee::SensorTemperature() {
 	double val(0.0);
 	try {
@@ -139,7 +143,7 @@ bool CameraApogee::StartExpose(double duration, bool light) {
 		altacam_->StartExposure(duration, light);
 		return true;
 	}
-	catch(exception& ex) {
+	catch(std::exception& ex) {
 		nfcam_->errmsg = ex.what();
 		return false;
 	}

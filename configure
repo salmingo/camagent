@@ -4837,7 +4837,7 @@ fi
 done
 
 
-for ac_header in fcntl.h limits.h netdb.h stdlib.h string.h strings.h sys/socket.h sys/vfs.h syslog.h unistd.h
+for ac_header in fcntl.h limits.h netdb.h stdlib.h string.h strings.h sys/socket.h sys/vfs.h syslog.h unistd.h arpa/inet.h netinet/in.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -5215,6 +5215,20 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 ;;
 esac
+
+ac_fn_c_find_uintX_t "$LINENO" "8" "ac_cv_c_uint8_t"
+case $ac_cv_c_uint8_t in #(
+  no|yes) ;; #(
+  *)
+
+$as_echo "#define _UINT8_T 1" >>confdefs.h
+
+
+cat >>confdefs.h <<_ACEOF
+#define uint8_t $ac_cv_c_uint8_t
+_ACEOF
+;;
+  esac
 
 ac_fn_c_find_uintX_t "$LINENO" "16" "ac_cv_c_uint16_t"
 case $ac_cv_c_uint16_t in #(

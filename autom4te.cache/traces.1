@@ -429,7 +429,7 @@ m4trace:configure.ac:12: -1- AH_OUTPUT([HAVE_STRCASECMP], [/* Define to 1 if you
 @%:@undef HAVE_STRCASECMP])
 m4trace:configure.ac:12: -1- AH_OUTPUT([HAVE_STRERROR], [/* Define to 1 if you have the `strerror\' function. */
 @%:@undef HAVE_STRERROR])
-m4trace:configure.ac:13: -1- AC_CHECK_HEADERS([fcntl.h limits.h netdb.h stdlib.h string.h strings.h sys/socket.h sys/vfs.h syslog.h unistd.h])
+m4trace:configure.ac:13: -1- AC_CHECK_HEADERS([fcntl.h limits.h netdb.h stdlib.h string.h strings.h sys/socket.h sys/vfs.h syslog.h unistd.h arpa/inet.h netinet/in.h])
 m4trace:configure.ac:13: -1- AH_OUTPUT([HAVE_FCNTL_H], [/* Define to 1 if you have the <fcntl.h> header file. */
 @%:@undef HAVE_FCNTL_H])
 m4trace:configure.ac:13: -1- AH_OUTPUT([HAVE_LIMITS_H], [/* Define to 1 if you have the <limits.h> header file. */
@@ -450,6 +450,10 @@ m4trace:configure.ac:13: -1- AH_OUTPUT([HAVE_SYSLOG_H], [/* Define to 1 if you h
 @%:@undef HAVE_SYSLOG_H])
 m4trace:configure.ac:13: -1- AH_OUTPUT([HAVE_UNISTD_H], [/* Define to 1 if you have the <unistd.h> header file. */
 @%:@undef HAVE_UNISTD_H])
+m4trace:configure.ac:13: -1- AH_OUTPUT([HAVE_ARPA_INET_H], [/* Define to 1 if you have the <arpa/inet.h> header file. */
+@%:@undef HAVE_ARPA_INET_H])
+m4trace:configure.ac:13: -1- AH_OUTPUT([HAVE_NETINET_IN_H], [/* Define to 1 if you have the <netinet/in.h> header file. */
+@%:@undef HAVE_NETINET_IN_H])
 m4trace:configure.ac:13: -1- AC_SUBST([CPP])
 m4trace:configure.ac:13: -1- AC_SUBST_TRACE([CPP])
 m4trace:configure.ac:13: -1- m4_pattern_allow([^CPP$])
@@ -549,62 +553,74 @@ m4trace:configure.ac:20: -1- m4_pattern_allow([^int8_t$])
 m4trace:configure.ac:20: -1- AH_OUTPUT([int8_t], [/* Define to the type of a signed integer type of width exactly 8 bits if such
    a type exists and the standard includes do not define it. */
 @%:@undef int8_t])
-m4trace:configure.ac:21: -1- AC_TYPE_UINT16_T
-m4trace:configure.ac:21: -1- AC_DEFINE_TRACE_LITERAL([uint16_t])
-m4trace:configure.ac:21: -1- m4_pattern_allow([^uint16_t$])
-m4trace:configure.ac:21: -1- AH_OUTPUT([uint16_t], [/* Define to the type of an unsigned integer type of width exactly 16 bits if
+m4trace:configure.ac:21: -1- AC_TYPE_UINT8_T
+m4trace:configure.ac:21: -1- AC_DEFINE_TRACE_LITERAL([_UINT8_T])
+m4trace:configure.ac:21: -1- m4_pattern_allow([^_UINT8_T$])
+m4trace:configure.ac:21: -1- AH_OUTPUT([_UINT8_T], [/* Define for Solaris 2.5.1 so the uint8_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   @%:@define below would cause a syntax error. */
+@%:@undef _UINT8_T])
+m4trace:configure.ac:21: -1- AC_DEFINE_TRACE_LITERAL([uint8_t])
+m4trace:configure.ac:21: -1- m4_pattern_allow([^uint8_t$])
+m4trace:configure.ac:21: -1- AH_OUTPUT([uint8_t], [/* Define to the type of an unsigned integer type of width exactly 8 bits if
+   such a type exists and the standard includes do not define it. */
+@%:@undef uint8_t])
+m4trace:configure.ac:22: -1- AC_TYPE_UINT16_T
+m4trace:configure.ac:22: -1- AC_DEFINE_TRACE_LITERAL([uint16_t])
+m4trace:configure.ac:22: -1- m4_pattern_allow([^uint16_t$])
+m4trace:configure.ac:22: -1- AH_OUTPUT([uint16_t], [/* Define to the type of an unsigned integer type of width exactly 16 bits if
    such a type exists and the standard includes do not define it. */
 @%:@undef uint16_t])
-m4trace:configure.ac:22: -1- AC_TYPE_UINT32_T
-m4trace:configure.ac:22: -1- AC_DEFINE_TRACE_LITERAL([_UINT32_T])
-m4trace:configure.ac:22: -1- m4_pattern_allow([^_UINT32_T$])
-m4trace:configure.ac:22: -1- AH_OUTPUT([_UINT32_T], [/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+m4trace:configure.ac:23: -1- AC_TYPE_UINT32_T
+m4trace:configure.ac:23: -1- AC_DEFINE_TRACE_LITERAL([_UINT32_T])
+m4trace:configure.ac:23: -1- m4_pattern_allow([^_UINT32_T$])
+m4trace:configure.ac:23: -1- AH_OUTPUT([_UINT32_T], [/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    @%:@define below would cause a syntax error. */
 @%:@undef _UINT32_T])
-m4trace:configure.ac:22: -1- AC_DEFINE_TRACE_LITERAL([uint32_t])
-m4trace:configure.ac:22: -1- m4_pattern_allow([^uint32_t$])
-m4trace:configure.ac:22: -1- AH_OUTPUT([uint32_t], [/* Define to the type of an unsigned integer type of width exactly 32 bits if
+m4trace:configure.ac:23: -1- AC_DEFINE_TRACE_LITERAL([uint32_t])
+m4trace:configure.ac:23: -1- m4_pattern_allow([^uint32_t$])
+m4trace:configure.ac:23: -1- AH_OUTPUT([uint32_t], [/* Define to the type of an unsigned integer type of width exactly 32 bits if
    such a type exists and the standard includes do not define it. */
 @%:@undef uint32_t])
-m4trace:configure.ac:23: -1- AC_TYPE_UINT64_T
-m4trace:configure.ac:23: -1- AC_DEFINE_TRACE_LITERAL([_UINT64_T])
-m4trace:configure.ac:23: -1- m4_pattern_allow([^_UINT64_T$])
-m4trace:configure.ac:23: -1- AH_OUTPUT([_UINT64_T], [/* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
+m4trace:configure.ac:24: -1- AC_TYPE_UINT64_T
+m4trace:configure.ac:24: -1- AC_DEFINE_TRACE_LITERAL([_UINT64_T])
+m4trace:configure.ac:24: -1- m4_pattern_allow([^_UINT64_T$])
+m4trace:configure.ac:24: -1- AH_OUTPUT([_UINT64_T], [/* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    @%:@define below would cause a syntax error. */
 @%:@undef _UINT64_T])
-m4trace:configure.ac:23: -1- AC_DEFINE_TRACE_LITERAL([uint64_t])
-m4trace:configure.ac:23: -1- m4_pattern_allow([^uint64_t$])
-m4trace:configure.ac:23: -1- AH_OUTPUT([uint64_t], [/* Define to the type of an unsigned integer type of width exactly 64 bits if
+m4trace:configure.ac:24: -1- AC_DEFINE_TRACE_LITERAL([uint64_t])
+m4trace:configure.ac:24: -1- m4_pattern_allow([^uint64_t$])
+m4trace:configure.ac:24: -1- AH_OUTPUT([uint64_t], [/* Define to the type of an unsigned integer type of width exactly 64 bits if
    such a type exists and the standard includes do not define it. */
 @%:@undef uint64_t])
-m4trace:configure.ac:25: -1- AC_CONFIG_HEADERS([config.h])
-m4trace:configure.ac:26: -1- AC_CONFIG_FILES([Makefile src/Makefile])
-m4trace:configure.ac:27: -1- AC_SUBST([LIB@&t@OBJS], [$ac_libobjs])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([LIB@&t@OBJS])
-m4trace:configure.ac:27: -1- m4_pattern_allow([^LIB@&t@OBJS$])
-m4trace:configure.ac:27: -1- AC_SUBST([LTLIBOBJS], [$ac_ltlibobjs])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([LTLIBOBJS])
-m4trace:configure.ac:27: -1- m4_pattern_allow([^LTLIBOBJS$])
-m4trace:configure.ac:27: -1- AM_CONDITIONAL([am__EXEEXT], [test -n "$EXEEXT"])
-m4trace:configure.ac:27: -1- AC_PREREQ([2.52])
-m4trace:configure.ac:27: -1- AC_SUBST([am__EXEEXT_TRUE])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([am__EXEEXT_TRUE])
-m4trace:configure.ac:27: -1- m4_pattern_allow([^am__EXEEXT_TRUE$])
-m4trace:configure.ac:27: -1- AC_SUBST([am__EXEEXT_FALSE])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([am__EXEEXT_FALSE])
-m4trace:configure.ac:27: -1- m4_pattern_allow([^am__EXEEXT_FALSE$])
-m4trace:configure.ac:27: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_TRUE])
-m4trace:configure.ac:27: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_FALSE])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([top_builddir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([top_build_prefix])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([srcdir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([abs_srcdir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([top_srcdir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([abs_top_srcdir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([builddir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([abs_builddir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([abs_top_builddir])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([INSTALL])
-m4trace:configure.ac:27: -1- AC_SUBST_TRACE([MKDIR_P])
+m4trace:configure.ac:26: -1- AC_CONFIG_HEADERS([config.h])
+m4trace:configure.ac:27: -1- AC_CONFIG_FILES([Makefile src/Makefile])
+m4trace:configure.ac:28: -1- AC_SUBST([LIB@&t@OBJS], [$ac_libobjs])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([LIB@&t@OBJS])
+m4trace:configure.ac:28: -1- m4_pattern_allow([^LIB@&t@OBJS$])
+m4trace:configure.ac:28: -1- AC_SUBST([LTLIBOBJS], [$ac_ltlibobjs])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([LTLIBOBJS])
+m4trace:configure.ac:28: -1- m4_pattern_allow([^LTLIBOBJS$])
+m4trace:configure.ac:28: -1- AM_CONDITIONAL([am__EXEEXT], [test -n "$EXEEXT"])
+m4trace:configure.ac:28: -1- AC_PREREQ([2.52])
+m4trace:configure.ac:28: -1- AC_SUBST([am__EXEEXT_TRUE])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([am__EXEEXT_TRUE])
+m4trace:configure.ac:28: -1- m4_pattern_allow([^am__EXEEXT_TRUE$])
+m4trace:configure.ac:28: -1- AC_SUBST([am__EXEEXT_FALSE])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([am__EXEEXT_FALSE])
+m4trace:configure.ac:28: -1- m4_pattern_allow([^am__EXEEXT_FALSE$])
+m4trace:configure.ac:28: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_TRUE])
+m4trace:configure.ac:28: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_FALSE])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([top_builddir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([top_build_prefix])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([srcdir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([abs_srcdir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([top_srcdir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([abs_top_srcdir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([builddir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([abs_builddir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([abs_top_builddir])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([INSTALL])
+m4trace:configure.ac:28: -1- AC_SUBST_TRACE([MKDIR_P])

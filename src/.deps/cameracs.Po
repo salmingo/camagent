@@ -1900,7 +1900,8 @@ cameracs.o: cameracs.cpp /usr/include/stdc-predef.h /usr/include/math.h \
  /usr/include/c++/4.8.2/tr1/shared_ptr.h \
  /usr/local/include/libapogee-3.0/apogee/CameraStatusRegs.h \
  /usr/local/include/libapogee-3.0/apogee/DefDllExport.h \
- /usr/local/include/libapogee-3.0/apogee/CameraInfo.h
+ /usr/local/include/libapogee-3.0/apogee/CameraInfo.h CameraGY.h \
+ udp_asio.h
 
 /usr/include/stdc-predef.h:
 
@@ -5923,3 +5924,7 @@ CameraApogee.h:
 /usr/local/include/libapogee-3.0/apogee/DefDllExport.h:
 
 /usr/local/include/libapogee-3.0/apogee/CameraInfo.h:
+
+CameraGY.h:
+
+udp_asio.h:

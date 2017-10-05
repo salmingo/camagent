@@ -1,8 +1,9 @@
 bin_PROGRAMS=camagent
-camagent_SOURCES=camagent.cpp cameracs.cpp asciiproto.cpp ATimeSpace.cpp daemon.cpp GLog.cpp \
+camagent_SOURCES=camagent.cpp cameracs.cpp asciiproto.cpp ATimeSpace.cpp daemon.cpp GLog.cpp udp_asio.cpp \
                  ioservice_keep.cpp msgque_base.cpp NTPClient.cpp tcp_asio.cpp FileTransferClient.cpp \
                  CameraBase.cpp \
-                 CameraApogee.cpp apgSampleCmn.cpp
+                 CameraApogee.cpp apgSampleCmn.cpp \
+                 CameraGY.cpp
 
 AM_CPPFLAGS=-I/usr/local/include/libapogee-3.0
 camagent_LDFLAGS=-L/usr/local/lib

@@ -95,10 +95,11 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_camagent_OBJECTS = camagent.$(OBJEXT) cameracs.$(OBJEXT) \
 	asciiproto.$(OBJEXT) ATimeSpace.$(OBJEXT) daemon.$(OBJEXT) \
-	GLog.$(OBJEXT) ioservice_keep.$(OBJEXT) msgque_base.$(OBJEXT) \
-	NTPClient.$(OBJEXT) tcp_asio.$(OBJEXT) \
+	GLog.$(OBJEXT) udp_asio.$(OBJEXT) ioservice_keep.$(OBJEXT) \
+	msgque_base.$(OBJEXT) NTPClient.$(OBJEXT) tcp_asio.$(OBJEXT) \
 	FileTransferClient.$(OBJEXT) CameraBase.$(OBJEXT) \
-	CameraApogee.$(OBJEXT) apgSampleCmn.$(OBJEXT)
+	CameraApogee.$(OBJEXT) apgSampleCmn.$(OBJEXT) \
+	CameraGY.$(OBJEXT)
 camagent_OBJECTS = $(am_camagent_OBJECTS)
 am__DEPENDENCIES_1 =
 camagent_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -161,12 +162,12 @@ am__define_uniq_tagged_files = \
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/gwac/software/camagent-170608/missing aclocal-1.13
+ACLOCAL = ${SHELL} /media/psf/Home/Workspace/camagent/missing aclocal-1.13
 AMTAR = $${TAR-tar}
 AM_DEFAULT_VERBOSITY = 1
-AUTOCONF = ${SHELL} /home/gwac/software/camagent-170608/missing autoconf
-AUTOHEADER = ${SHELL} /home/gwac/software/camagent-170608/missing autoheader
-AUTOMAKE = ${SHELL} /home/gwac/software/camagent-170608/missing automake-1.13
+AUTOCONF = ${SHELL} /media/psf/Home/Workspace/camagent/missing autoconf
+AUTOHEADER = ${SHELL} /media/psf/Home/Workspace/camagent/missing autoheader
+AUTOMAKE = ${SHELL} /media/psf/Home/Workspace/camagent/missing automake-1.13
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -194,7 +195,7 @@ LDFLAGS =
 LIBOBJS = 
 LIBS = 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/gwac/software/camagent-170608/missing makeinfo
+MAKEINFO = ${SHELL} /media/psf/Home/Workspace/camagent/missing makeinfo
 MKDIR_P = /usr/bin/mkdir -p
 OBJEXT = o
 PACKAGE = camagent
@@ -209,10 +210,10 @@ SET_MAKE =
 SHELL = /bin/sh
 STRIP = 
 VERSION = 0.3
-abs_builddir = /home/gwac/software/camagent-170608/src
-abs_srcdir = /home/gwac/software/camagent-170608/src
-abs_top_builddir = /home/gwac/software/camagent-170608
-abs_top_srcdir = /home/gwac/software/camagent-170608
+abs_builddir = /media/psf/Home/Workspace/camagent/src
+abs_srcdir = /media/psf/Home/Workspace/camagent/src
+abs_top_builddir = /media/psf/Home/Workspace/camagent
+abs_top_srcdir = /media/psf/Home/Workspace/camagent
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 am__include = include
@@ -240,7 +241,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/gwac/software/camagent-170608/install-sh
+install_sh = ${SHELL} /media/psf/Home/Workspace/camagent/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -264,10 +265,11 @@ target_vendor = unknown
 top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
-camagent_SOURCES = camagent.cpp cameracs.cpp asciiproto.cpp ATimeSpace.cpp daemon.cpp GLog.cpp \
+camagent_SOURCES = camagent.cpp cameracs.cpp asciiproto.cpp ATimeSpace.cpp daemon.cpp GLog.cpp udp_asio.cpp \
                  ioservice_keep.cpp msgque_base.cpp NTPClient.cpp tcp_asio.cpp FileTransferClient.cpp \
                  CameraBase.cpp \
-                 CameraApogee.cpp apgSampleCmn.cpp
+                 CameraApogee.cpp apgSampleCmn.cpp \
+                 CameraGY.cpp
 
 AM_CPPFLAGS = -I/usr/local/include/libapogee-3.0
 camagent_LDFLAGS = -L/usr/local/lib
@@ -365,6 +367,7 @@ distclean-compile:
 include ./$(DEPDIR)/ATimeSpace.Po
 include ./$(DEPDIR)/CameraApogee.Po
 include ./$(DEPDIR)/CameraBase.Po
+include ./$(DEPDIR)/CameraGY.Po
 include ./$(DEPDIR)/FileTransferClient.Po
 include ./$(DEPDIR)/GLog.Po
 include ./$(DEPDIR)/NTPClient.Po
@@ -376,6 +379,7 @@ include ./$(DEPDIR)/daemon.Po
 include ./$(DEPDIR)/ioservice_keep.Po
 include ./$(DEPDIR)/msgque_base.Po
 include ./$(DEPDIR)/tcp_asio.Po
+include ./$(DEPDIR)/udp_asio.Po
 
 .cpp.o:
 	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

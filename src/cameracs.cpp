@@ -30,7 +30,7 @@
 //#include "CameraFLI.h"
 #include "CameraApogee.h"
 //#include "CameraPI.h"
-//#include "CameraGY.h"
+#include "CameraGY.h"
 
 using namespace boost;
 
@@ -320,8 +320,8 @@ bool cameracs::connect_camera() {
 		break;
 	case 5:	// GWAC定制相机, 港宇公司
 	{
-//		boost::shared_ptr<CameraGY> ccd = boost::make_shared<CameraGY>(param_->camIP);
-//		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
+		boost::shared_ptr<CameraGY> ccd = boost::make_shared<CameraGY>(param_->camIP);
+		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
 	}
 		break;
 	default:
@@ -700,7 +700,7 @@ double cameracs::FlatMean() {
 	boost::shared_ptr<devcam_info> nfcam = camera_->GetCameraInfo();
 	int pixels = nfcam->roi.get_width() * nfcam->roi.get_height();
 	int n = pixels > 10000 ? 10000 : pixels;
-	usintarr data = nfcam->data;
+	boost::shared_array<uint8_t> data = nfcam->data;
 	double step = (double) pixels / n;
 	double sumv(0.0);
 	double pos;
