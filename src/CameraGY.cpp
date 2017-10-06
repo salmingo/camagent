@@ -189,7 +189,7 @@ bool CameraGY::StartExpose(double duration, bool light) {
 // 中止当前曝光过程
 void CameraGY::StopExpose() {
 	aborted_ = true;
-	Write(0x20050, 0x1);	// 中断且抛弃已累积数据
+	if (Write(0x20050, 0x1)) state_ = 0;	// 中断且抛弃已累积数据
 }
 
 // 相机工作状态
@@ -335,23 +335,25 @@ const char *CameraGY::UpdateNetwork(const uint32_t addr, const char *vstr) {
 }
 
 void CameraGY::ThreadHB() {
-	boost::chrono::milliseconds p1(1000);	// 闲(非曝光)态心跳周期: 1秒
-	boost::chrono::milliseconds p2(100);	// 忙(曝光)态心跳周期: 100毫秒
+	boost::chrono::milliseconds p(1000);	// 闲(非曝光)态心跳周期: 1秒c
 	ptime now;
 	ptime::time_duration_type td;
-	int busy_t1(p2.count() * 3), busy_t2(busy_t1 - 86400000);	// 忙(曝光)态无反馈阈值
+	int busy_t1(p.count() * 3), busy_t2(busy_t1 - 86400000);	// 忙(曝光)态无反馈阈值
 	int dt;
 	bool brun(true);
 
 	while(brun) {
-		boost::this_thread::sleep_for(p1);
+		boost::this_thread::sleep_for(p);
 		Write(0x0938, 0x2EE0);
 
 		if (nfcam_->exposing) {
 			now = microsec_clock::universal_time();
 			td = now - nfcam_->tmobs;
 
-			if ((td.total_seconds() - nfcam_->eduration) > 10.0) state_ = -1;
+			if ((td.total_seconds() - nfcam_->eduration) > 10.0) {
+				Write(0x20050, 0x1);
+				state_ = -1;
+			}
 			else if (idFrame_ != 0xFFFF && bytercd_ < byteimg_) {
 				dt = now.time_of_day().total_milliseconds() - tmdata_;
 				if (dt > busy_t1 || dt < busy_t2) Retransmit();

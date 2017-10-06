@@ -28,7 +28,7 @@
 #include "GLog.h"
 //#include "CameraAndorCCD.h"
 //#include "CameraFLI.h"
-#include "CameraApogee.h"
+//#include "CameraApogee.h"
 //#include "CameraPI.h"
 #include "CameraGY.h"
 
@@ -284,6 +284,12 @@ void cameracs::OnAbortExpose() {
 		nfsys_->command = EXPOSE_START;
 		post_message(MSG_PREPARE_EXPOSE);
 	}
+	else {// nfsys_->command == EXPOSE_START
+		// 曝光失败
+		gLog.Write("exposure failed");
+		nfsys_->state = CAMERA_ERROR;
+		post_message(MSG_PREPARE_EXPOSE);
+	}
 	// 通知服务器
 	if (state != nfsys_->state) SendCameraInfo(nfsys_->state);
 }
@@ -308,8 +314,8 @@ bool cameracs::connect_camera() {
 		break;
 	case 3:	// Apogee CCD
 	{
-		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
-		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
+//		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
+//		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
 	}
 		break;
 	case 4:	// PI CCD
@@ -502,9 +508,15 @@ void cameracs::SendCameraInfo(int state) {
 
 void cameracs::StartExpose() {
 	mutex_lock lck(mtxsys_);
-	gLog.Write("New exposure: No.<%d of %d>", nfobj_->frmno + 1, nfobj_->frmcnt);
-	nfsys_->state = CAMERA_EXPOSE;
-	camera_->Expose(nfobj_->expdur, nfobj_->light);
+	if (camera_->Expose(nfobj_->expdur, nfobj_->light)) {
+		gLog.Write("New exposure: No.<%d of %d>", nfobj_->frmno + 1, nfobj_->frmcnt);
+		nfsys_->state = CAMERA_EXPOSE;
+	}
+	else {
+		gLog.Write("StartExpose", LOG_FAULT, "failed to start exposure: %s",
+				camera_->GetCameraInfo()->errmsg.c_str());
+		nfsys_->state = CAMERA_ERROR;
+	}
 	SendCameraInfo(nfsys_->state);
 }
 
@@ -639,7 +651,10 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 		switch(proto->command) {
 		case EXPOSE_START:
 		{
-			if (state == CAMERA_IDLE || state == CAMERA_PAUSE || state == CAMERA_PAUSE_FLAT) {
+			if (nfobj_->obj_id.empty()) {
+				gLog.Write(NULL, LOG_WARN, "<expose start> is rejected for obj_id is empty");
+			}
+			else if (state == CAMERA_IDLE || state == CAMERA_PAUSE || state == CAMERA_PAUSE_FLAT) {
 				gLog.Write("<expose start> %s exposure sequence", state == CAMERA_IDLE ? "start" : "resume");
 				nfsys_->command = EXPOSE_START;
 				resetdelay_ = 0;

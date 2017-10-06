@@ -23,7 +23,7 @@
 #define STRATUM		0
 #define POLL		4
 #define PREC		-6
-#define UINTMAX		4294967295
+#define UINTMAX		4294967295.0
 
 NTPClient::NTPClient(const char* hostIP, const int port, const int tSyn)
 	: m_port(port),
