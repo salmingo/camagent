@@ -133,7 +133,6 @@ void FileTransferClient::ThreadAlive() {
 					}
 					catch(exception& ex) {
 						gLog.Write("FileTransferClient", LOG_WARN, ex.what());
-						socket_->close();
 						socket_.reset();
 					}
 				}
@@ -195,7 +194,6 @@ bool FileTransferClient::UploadFile(upfptr file) {
 	}
 	catch(exception& ex) {
 		gLog.Write("UploadFile()", LOG_FAULT, ex.what());
-		socket_->close();
 		socket_.reset();
 		return false;
 	}
