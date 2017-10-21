@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <math.h>
+#include <stdio.h>
 #include "CameraGY.h"
 
 //=============================================================================
@@ -128,8 +129,13 @@ void CameraGY::UpdateReadRate(uint32_t& index) {
 // 设置增益
 void CameraGY::UpdateGain(uint32_t& index) {
 	if (0 <= index && index <= 2 && index != gain_) {
-		Write(0x00020008, index);
-		Read(0x00020008, index);
+		try {
+			Write(0x00020008, index);
+			Read(0x00020008, index);
+		}
+		catch(std::runtime_error& ex) {
+			nfcam_->errmsg = ex.what();
+		}
 	}
 }
 
@@ -140,16 +146,12 @@ void CameraGY::UpdateROI(int& xbin, int& ybin,
 }
 
 void CameraGY::UpdateADCOffset(uint16_t offset) {
-
-	/* 第一轮: 粗调. 增益g=10, 即1x=10ADU */
-
-	/* 第二轮: 精调. 增益变更为由第一轮结果的计算值 */
-
+	//...不支持该功能
 }
 
 // 查看相机芯片温度
 double CameraGY::SensorTemperature() {
-	//...
+	//...不支持该功能
 	return -30.0;
 }
 
@@ -164,18 +166,14 @@ bool CameraGY::StartExpose(double duration, bool light) {
 		memset(packflag_.get(), 0, packtot_ + 1);
 		// 设置曝光参数
 		uint32_t val;
-		if (shtrmode_ != (val = light ? 0 : 2)) {
-			if (Write(0x0002000C, val) && Read(0x0002000C, val)) {
-				shtrmode_ = val;
-				boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
-			}
-			else throw std::runtime_error("failed to update shutter mode");
+		if (shtrmode_ != (val = light ? 0 : 2) && Write(0x0002000C, val)) {
+			Read(0x0002000C, shtrmode_);
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
 		}
-		if (expdur_ != (val = uint32_t(duration * 1E6))) {
-			if (Write(0x00020010, val) && Read(0x00020010, val)) expdur_ = val;
-			else throw std::runtime_error("failed to update exposure duration");
+		if (expdur_ != (val = uint32_t(duration * 1E6)) && Write(0x00020010, val)) {
+			Read(0x00020010, expdur_);
 		}
-		if (!Write(0x00020000, 0x01)) throw std::runtime_error("failed to trigger image");
+		Write(0x00020000, 0x01);
 		state_ = 1;
 
 		return true;
@@ -190,7 +188,8 @@ bool CameraGY::StartExpose(double duration, bool light) {
 void CameraGY::StopExpose() {
 	try {
 		aborted_ = true;
-		if (Write(0x20050, 0x1)) state_ = 0;	// 中断且抛弃已累积数据
+		Write(0x20050, 0x1);
+		state_ = 0;	// 中断且抛弃已累积数据
 	}
 	catch(std::runtime_error& ex) {
 		nfcam_->errmsg = ex.what();
@@ -218,7 +217,7 @@ void CameraGY::DownloadImage() {
 			data += len;
 		}
 	}
-	state_ = bytercd_ < byteimg_ ? -1 : 0;
+	state_ = (aborted_ || bytercd_ < byteimg_) ? -1 : 0;
 }
 
 bool CameraGY::Write(uint32_t addr, uint32_t val) {
@@ -231,10 +230,17 @@ bool CameraGY::Write(uint32_t addr, uint32_t val) {
 	((uint32_t*) &buff1)[3] = htonl(val);
 	udpcmd_->write(buff1.c_array(), buff1.size());
 	const uint8_t *buff2 = udpcmd_->block_read(n);
-	if (n != 12) {
-		boost::format fmt("Failed to write register<%0X>, length = %d");
-		fmt % addr % n;
-		throw std::runtime_error(fmt.str());
+
+	// 2017-10-21: 输出收到的信息
+	if (n != 12 || buff2[11] != 0x01) {
+		char txt[200];
+		int n1 = sprintf(txt, "length<%d> if write register<%0X>: ", n, addr);
+		for (int i = 0; i < n; ++i) n1 += sprintf(txt + n1, "%02X ", buff2[i]);
+		throw std::runtime_error(txt);
+// before 2017-10-21
+//		boost::format fmt("Failed to write register<%0X>, length = %d");
+//		fmt % addr % n;
+//		throw std::runtime_error(fmt.str());
 	}
 	return buff2[11] == 0x01;
 }
@@ -249,12 +255,18 @@ bool CameraGY::Read(uint32_t addr, uint32_t &val) {
 	udpcmd_->write(buff1.c_array(), buff1.size());
 	const uint8_t *buff2 = udpcmd_->block_read(n);
 	if (n != 12) {
-		boost::format fmt("Failed to read register<%0X>");
-		fmt % addr;
-		throw std::runtime_error(fmt.str());
+		// 2017-10-21: 输出收到的信息
+		char txt[200];
+		int n1 = sprintf(txt, "length<%d> of read register<%0X>: ", n, addr);
+		for (int i = 0; i < n; ++i) n1 += sprintf(txt + n1, "%02X ", buff2[i]);
+		throw std::runtime_error(txt);
+// before 2017-10-21
+//		boost::format fmt("Failed to read register<%0X>");
+//		fmt % addr;
+//		throw std::runtime_error(fmt.str());
 	}
-	val = ntohl(((uint32_t*)buff2)[2]);
-	return true;
+	else val = ntohl(((uint32_t*)buff2)[2]);
+	return n == 12;
 }
 
 void CameraGY::Retransmit() {
@@ -329,14 +341,19 @@ const char *CameraGY::SetGateway(const char *gateway) {
 
 const char *CameraGY::UpdateNetwork(const uint32_t addr, const char *vstr) {
 	if (!nfcam_->connected) return NULL;
-	uint32_t value;
-	static char buff[INET_ADDRSTRLEN];
-	inet_pton(AF_INET, vstr, &value);
-	if (Write(addr, ntohl(value)) && Read(addr, value)) {
-		value = htonl(value);
-		return inet_ntop(AF_INET, &addr, buff, INET_ADDRSTRLEN);
-	}
 
+	try {
+		uint32_t value;
+		static char buff[INET_ADDRSTRLEN];
+		inet_pton(AF_INET, vstr, &value);
+		if (Write(addr, ntohl(value)) && Read(addr, value)) {
+			value = htonl(value);
+			return inet_ntop(AF_INET, &addr, buff, INET_ADDRSTRLEN);
+		}
+	}
+	catch(std::runtime_error& ex) {
+		nfcam_->errmsg = ex.what();
+	}
 	return NULL;
 }
 
