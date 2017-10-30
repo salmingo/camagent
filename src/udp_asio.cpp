@@ -24,13 +24,13 @@ udp_session::~udp_session() {
 void udp_session::handle_receive(const boost::system::error_code& ec, const int n) {
 	if (!ec || ec == asio::error::message_size) {
 		bytercv_ = n;
-		cbrcv_((const long) this, n);
+		if (!cbrcv_.empty()) cbrcv_((const long) this, n);
 		async_receive();
 	}
 }
 
 void udp_session::handle_send(const boost::system::error_code& ec, const int n) {
-	if (!ec) cbsnd_((const long) this, 0);
+	if (!ec && !cbsnd_.empty()) cbsnd_((const long) this, 0);
 }
 
 bool udp_session::re_open() {

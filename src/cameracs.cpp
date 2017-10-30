@@ -286,7 +286,8 @@ void cameracs::OnAbortExpose() {
 	}
 	else {// nfsys_->command == EXPOSE_START
 		// 曝光失败
-		gLog.Write("exposure failed");
+		gLog.Write("exposure failed", LOG_FAULT, "%s",
+				camera_->GetCameraInfo()->errmsg.c_str());
 		nfsys_->state = CAMERA_ERROR;
 		post_message(MSG_PREPARE_EXPOSE);
 	}
