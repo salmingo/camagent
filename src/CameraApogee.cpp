@@ -18,6 +18,7 @@ CameraApogee::~CameraApogee() {
 
 bool CameraApogee::OpenCamera() {
 	try {
+		using std::string;
 		string ioInterface("usb");
 		FindDeviceUsb look4cam;
 		string msg, addr;
@@ -124,7 +125,7 @@ void CameraApogee::UpdateROI(int& xbin, int& ybin, int& xstart, int& ystart, int
 }
 
 void CameraApogee::UpdateADCOffset(uint16_t offset) {
-	//...
+	//...保留
 }
 
 double CameraApogee::SensorTemperature() {
@@ -143,10 +144,6 @@ bool CameraApogee::StartExpose(double duration, bool light) {
 		altacam_->StartExposure(duration, light);
 		return true;
 	}
-	catch(std::exception& ex) {
-		nfcam_->errmsg = ex.what();
-		return false;
-	}
 	catch(...) {
 		nfcam_->errmsg = "unknown error during start new exposure";
 		return false;
@@ -157,18 +154,26 @@ void CameraApogee::StopExpose() {
 	altacam_->StopExposure(true);
 }
 
-int CameraApogee::CameraState() {
+CAMERA_STATUS CameraApogee::CameraState() {
 	Apg::Status status = altacam_->GetImagingStatus();
-	int retv(-1);
+	CAMERA_STATUS retv;
 
-	if (status == Apg::Status_Exposing || status == Apg::Status_ImagingActive) retv = 1;
-	else if (status == Apg::Status_ImageReady) retv = 2;
-	else if (status >= 0) retv = 0;
+	if (status == Apg::Status_ImageReady) retv = CAMERA_IMGRDY;
+	else if (status > 0)  retv = CAMERA_EXPOSE;
+	else if (status == 0) retv = CAMERA_IDLE;
+	else retv = CAMERA_ERROR;
 	return retv;
 }
 
-void CameraApogee::DownloadImage() {
-	int n = nfcam_->roi.get_width() * nfcam_->roi.get_height();
-	altacam_->GetImage(data);
-	memcpy(nfcam_->data.get(), (char*)&data[0], n * sizeof(unsigned short));
+CAMERA_STATUS CameraApogee::DownloadImage() {
+	try {
+		int n = nfcam_->roi.get_width() * nfcam_->roi.get_height();
+		altacam_->GetImage(data);
+		memcpy(nfcam_->data.get(), (char*)&data[0], n * sizeof(unsigned short));
+		return CAMERA_IMGRDY;
+	}
+	catch(...) {
+		nfcam_->errmsg = "unknown error on readout";
+		return CAMERA_ERROR;
+	}
 }

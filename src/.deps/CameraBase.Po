@@ -278,10 +278,7 @@ CameraBase.o: CameraBase.cpp /usr/include/stdc-predef.h \
  /usr/local/include/boost/type_traits/is_class.hpp \
  /usr/local/include/boost/smart_ptr/detail/sp_if_array.hpp \
  /usr/local/include/boost/smart_ptr/allocate_shared_array.hpp \
- CameraBase.h /usr/include/c++/4.8.2/vector \
- /usr/include/c++/4.8.2/bits/stl_vector.h \
- /usr/include/c++/4.8.2/bits/stl_bvector.h \
- /usr/include/c++/4.8.2/bits/vector.tcc \
+ CameraBase.h \
  /usr/local/include/boost/date_time/posix_time/posix_time.hpp \
  /usr/local/include/boost/date_time/compiler_config.hpp \
  /usr/local/include/boost/date_time/locale_config.hpp \
@@ -463,6 +460,9 @@ CameraBase.o: CameraBase.cpp /usr/include/stdc-predef.h \
  /usr/local/include/boost/io/ios_state.hpp \
  /usr/local/include/boost/io_fwd.hpp \
  /usr/local/include/boost/date_time/date_facet.hpp \
+ /usr/include/c++/4.8.2/vector /usr/include/c++/4.8.2/bits/stl_vector.h \
+ /usr/include/c++/4.8.2/bits/stl_bvector.h \
+ /usr/include/c++/4.8.2/bits/vector.tcc \
  /usr/local/include/boost/algorithm/string/replace.hpp \
  /usr/local/include/boost/algorithm/string/config.hpp \
  /usr/local/include/boost/range/iterator_range_core.hpp \
@@ -2089,14 +2089,6 @@ CameraBase.o: CameraBase.cpp /usr/include/stdc-predef.h \
 
 CameraBase.h:
 
-/usr/include/c++/4.8.2/vector:
-
-/usr/include/c++/4.8.2/bits/stl_vector.h:
-
-/usr/include/c++/4.8.2/bits/stl_bvector.h:
-
-/usr/include/c++/4.8.2/bits/vector.tcc:
-
 /usr/local/include/boost/date_time/posix_time/posix_time.hpp:
 
 /usr/local/include/boost/date_time/compiler_config.hpp:
@@ -2492,6 +2484,14 @@ CameraBase.h:
 /usr/local/include/boost/io_fwd.hpp:
 
 /usr/local/include/boost/date_time/date_facet.hpp:
+
+/usr/include/c++/4.8.2/vector:
+
+/usr/include/c++/4.8.2/bits/stl_vector.h:
+
+/usr/include/c++/4.8.2/bits/stl_bvector.h:
+
+/usr/include/c++/4.8.2/bits/vector.tcc:
 
 /usr/local/include/boost/algorithm/string/replace.hpp:
 

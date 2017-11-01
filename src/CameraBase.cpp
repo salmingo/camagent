@@ -37,6 +37,8 @@ bool CameraBase::Connect() {
 
 	int n;
 	nfcam_->connected = true;
+	nfcam_->state = CAMERA_IDLE;
+	nfcam_->errorno = 0;
 	nfcam_->roi.reset(nfcam_->wsensor, nfcam_->hsensor);
 	n = nfcam_->roi.get_width() * nfcam_->roi.get_height();
 	n = (n * 2 + 15) & ~15;	// 长度对准16字节
@@ -49,13 +51,14 @@ bool CameraBase::Connect() {
 }
 
 void CameraBase::Disconnect() {
-	if (!nfcam_->connected) return;
-	ExitThread(thrdIdle_);
-	ExitThread(thrdExpose_);
-
-	SetCooler(0.0, false);
-	CloseCamera();
-	nfcam_->connected = false;
+	if (nfcam_->connected) {
+		nfcam_->connected = false; // connected == false: 人为断开连接; connected == true: 内部异常断开连接
+		if (nfcam_->state >= CAMERA_EXPOSE) StopExpose();
+		ExitThread(thrdIdle_);
+		ExitThread(thrdExpose_);
+		SetCooler(0.0, false);
+		CloseCamera();
+	}
 }
 
 void CameraBase::SetCooler(double coolerset, bool onoff) {
@@ -67,28 +70,28 @@ void CameraBase::SetCooler(double coolerset, bool onoff) {
 }
 
 void CameraBase::SetReadPort(uint32_t index) {
-	if (!nfcam_->connected || nfcam_->exposing) return ;
+	if (!nfcam_->connected || nfcam_->state >= CAMERA_EXPOSE) return ;
 
 	UpdateReadPort(index);
 	nfcam_->readport = index;
 }
 
 void CameraBase::SetReadRate(uint32_t index) {
-	if (!nfcam_->connected || nfcam_->exposing) return ;
+	if (!nfcam_->connected || nfcam_->state >= CAMERA_EXPOSE) return ;
 
 	UpdateReadRate(index);
 	nfcam_->readrate = index;
 }
 
 void CameraBase::SetGain(uint32_t index) {
-	if (!nfcam_->connected || nfcam_->exposing) return ;
+	if (!nfcam_->connected || nfcam_->state >= CAMERA_EXPOSE) return ;
 
 	UpdateGain(index);
 	nfcam_->gain = index;
 }
 
 void CameraBase::SetROI(int xbin, int ybin, int xstart, int ystart, int width, int height) {
-	if (!nfcam_->connected || nfcam_->exposing) return ;
+	if (!nfcam_->connected || nfcam_->state >= CAMERA_EXPOSE) return ;
 
 	/* 参数有效性初步判断 */
 	int res;
@@ -130,14 +133,15 @@ void CameraBase::SetROI(int xbin, int ybin, int xstart, int ystart, int width, i
 }
 
 void CameraBase::SetADCOffset(uint16_t offset) {
-	if (!nfcam_->connected || nfcam_->exposing) return;
-	nfcam_->exposing = true;
-	UpdateADCOffset(offset);
-	nfcam_->exposing = false;
+	if (nfcam_->connected && nfcam_->state == CAMERA_EXPOSE) {
+		nfcam_->state = CAMERA_EXPOSE;
+		UpdateADCOffset(offset);
+		nfcam_->state = CAMERA_EXPOSE;
+	}
 }
 
 bool CameraBase::Expose(double duration, bool light) {
-	if (!nfcam_->connected || nfcam_->exposing) return false;
+	if (!nfcam_->connected || nfcam_->state >= CAMERA_EXPOSE) return false;
 	if (!StartExpose(duration, light)) return false;
 
 	nfcam_->begin_expose(duration);
@@ -149,16 +153,15 @@ bool CameraBase::Expose(double duration, bool light) {
 }
 
 void CameraBase::AbortExpose() {
-	if (!nfcam_->exposing) return;
-	StopExpose();
+	if (nfcam_->state >= CAMERA_EXPOSE) StopExpose();
 }
 
 void CameraBase::ThreadIdle() {
-	boost::chrono::seconds duration(5);
+	boost::chrono::seconds duration(6);
 
 	while(1) {
 		boost::this_thread::sleep_for(duration);
-		if (!nfcam_->exposing) nfcam_->coolerget = SensorTemperature();
+		nfcam_->coolerget = SensorTemperature();
 	}
 }
 
@@ -167,26 +170,33 @@ void CameraBase::ThreadExpose() {
 	mutex_lock lck(mtx);
 	boost::chrono::milliseconds duration;	// 等待周期
 	double left, percent;
-	int status, ms;
+	CAMERA_STATUS& status = nfcam_->state;
+	int ms;
 
 	while (true) {
 		condexp_.wait(lck);
-		while ((status = CameraState()) == 1) {// 监测曝光过程
+		while ((status = CameraState()) == CAMERA_EXPOSE) {// 监测曝光过程
 			nfcam_->check_expose(left, percent);
 			if (left > 0.1) ms = 100;
 			else ms = int(left * 1000);
 			duration = boost::chrono::milliseconds(ms);
 
-			exposeproc_(left, percent, 2);
+			exposeproc_(left, percent, (int) status);
 			if (ms > 0) boost::this_thread::sleep_for(duration);
 		}
-		if (status == 2) {
+		if (status == CAMERA_IMGRDY) {
 			nfcam_->end_expose();
-			exposeproc_(0.0, 100.0, 2);
-			DownloadImage();
+			exposeproc_(0.0, 100.0, (int) CAMERA_EXPOSE);
+			status = DownloadImage();
 		}
-		nfcam_->exposing = false;
-		exposeproc_(0.0, 100.001, status == 2 ? 1 : -1);
+		/*
+		 * 此时状态三种可能:
+		 * 1) CAMERA_IMGRDY: 正常结束, 可以存储图像等
+		 * 2) CMAERA_IDLE  : 异常结束, 中止曝光且设备无错误
+		 * 3) CAMERA_ERROR : 异常结束, 且设备错误
+		 */
+		exposeproc_(0.0, 100.001, (int) status);
+		if (status == CAMERA_IMGRDY) status = CAMERA_IDLE;
 	}
 }
 

@@ -62,7 +62,7 @@ bool cameracs::Start() {
 	}
 	// 连接相机
 	if (!connect_camera()) return false;
-	nfsys_->state = CAMERA_IDLE;
+	nfsys_->state = CAMCTL_IDLE;
 	start_ntp();	// 启动NTP服务
 	start_fs();		// 启动后台文件传输服务
 	connect_gc();	// 连接总控服务器
@@ -90,7 +90,8 @@ void cameracs::register_messages() {
 	const cbtype slot5 = boost::bind(&cameracs::OnProcessExpose,  this, _1, _2);
 	const cbtype slot6 = boost::bind(&cameracs::OnCompleteExpose, this);
 	const cbtype slot7 = boost::bind(&cameracs::OnAbortExpose,    this);
-	const cbtype slot8 = boost::bind(&cameracs::OnCompleteWait,   this);
+	const cbtype slot8 = boost::bind(&cameracs::OnFailExpose,     this);
+	const cbtype slot9 = boost::bind(&cameracs::OnCompleteWait,   this);
 
 	register_message(MSG_CONNECT_GC,      slot1);
 	register_message(MSG_RECEIVE_GC,      slot2);
@@ -99,7 +100,8 @@ void cameracs::register_messages() {
 	register_message(MSG_PROCESS_EXPOSE,  slot5);
 	register_message(MSG_COMPLETE_EXPOSE, slot6);
 	register_message(MSG_ABORT_EXPOSE,    slot7);
-	register_message(MSG_COMPLETE_WAIT,   slot8);
+	register_message(MSG_FAIL_EXPOSE,     slot8);
+	register_message(MSG_COMPLETE_WAIT,   slot9);
 }
 
 void cameracs::ConnectedGC(const long client, const long ec) {
@@ -160,7 +162,7 @@ void cameracs::OnPrepareExpose() {
 	ptime now = microsec_clock::universal_time();
 	ptime tmobs(nfobj_->begin_time); // 曝光起始时间
 
-	if (nfsys_->state == CAMERA_IDLE) {// 新的曝光序列
+	if (nfsys_->state == CAMCTL_IDLE) {// 新的曝光序列
 		/* 建立曝光起始时间
 		 * - 当约定帧间隔(代表需要等时间间隔获得图像数据), 但未定义起始时间时, 以当前时间为曝光起始时间
 		 */
@@ -234,7 +236,7 @@ void cameracs::OnCompleteExpose() {
 		}
 	}
 	// 更新状态
-	nfsys_->state = CAMERA_COMPLETE;
+	nfsys_->state = CAMCTL_COMPLETE;
 	SendCameraInfo(nfsys_->state);
 
 	/* 检测是否需要继续曝光 */
@@ -257,13 +259,13 @@ void cameracs::OnCompleteExpose() {
 	if (bcont) {
 		if (!isflat) post_message(MSG_PREPARE_EXPOSE);
 		else {
-			nfsys_->state = CAMERA_PAUSE_FLAT; // 触发转台重新指向
+			nfsys_->state = CAMCTL_WAIT_FLAT; // 触发转台重新指向
 			SendCameraInfo(nfsys_->state);
 		}
 	}
 	else {
 		gLog.Write("exposure sequence is over");
-		nfsys_->state = CAMERA_IDLE;
+		nfsys_->state = CAMCTL_IDLE;
 		SendCameraInfo(nfsys_->state);
 	}
 }
@@ -273,11 +275,11 @@ void cameracs::OnAbortExpose() {
 	int state = nfsys_->state;
 	if (nfsys_->command == EXPOSE_STOP) {
 		gLog.Write("exposure sequence is aborted");
-		nfsys_->state = CAMERA_IDLE;
+		nfsys_->state = CAMCTL_IDLE;
 	}
 	else if (nfsys_->command == EXPOSE_PAUSE) {
 		gLog.Write("exposure sequence is suspend");
-		nfsys_->state = CAMERA_PAUSE;
+		nfsys_->state = CAMCTL_PAUSE;
 	}
 	else if (nfsys_->command == EXPOSE_RESUME) {
 		gLog.Write("exposure sequence is resumed");
@@ -288,11 +290,15 @@ void cameracs::OnAbortExpose() {
 		// 曝光失败
 		gLog.Write("exposure failed", LOG_FAULT, "%s",
 				camera_->GetCameraInfo()->errmsg.c_str());
-		nfsys_->state = CAMERA_ERROR;
+		nfsys_->state = CAMCTL_ERROR;
 		post_message(MSG_PREPARE_EXPOSE);
 	}
 	// 通知服务器
 	if (state != nfsys_->state) SendCameraInfo(nfsys_->state);
+}
+
+void cameracs::OnFailExpose() {
+
 }
 
 void cameracs::OnCompleteWait() {
@@ -410,9 +416,22 @@ void cameracs::stop_fs() {
 }
 
 void cameracs::ExposeProcessCB(const double left, const double percent, const int state) {
-	if (state == -1) post_message(MSG_ABORT_EXPOSE);
-	else if (state == 1) post_message(nfsys_->command == EXPOSE_START ? MSG_COMPLETE_EXPOSE : MSG_ABORT_EXPOSE);
-	else if (state == 2) post_message(MSG_PROCESS_EXPOSE, long(left * 1E6), long(percent * 100));
+	switch((CAMERA_STATUS) state) {
+	case CAMERA_ERROR:  // 相机故障
+		post_message(MSG_FAIL_EXPOSE);	// 错误: 一般发生在曝光过程中, 但也可能在空闲态
+		break;
+	case CAMERA_IDLE:   // 人工中止曝光; 自动中止曝光(GY相机长时间未收到数据包自动中止曝光)
+		post_message(MSG_ABORT_EXPOSE);
+		break;
+	case CAMERA_EXPOSE: // 曝光过程中
+		post_message(MSG_PROCESS_EXPOSE, long(left * 1E6), long(percent * 100));
+		break;
+	case CAMERA_IMGRDY: // 已下载图像
+		post_message(MSG_COMPLETE_EXPOSE);
+		break;
+	default:
+		break;
+	}
 }
 
 void cameracs::ThreadCycle() {
@@ -428,7 +447,7 @@ void cameracs::ThreadCycle() {
 		now = microsec_clock::universal_time();
 		dt = now - tmlastsend_;
 		// 检查相机温度
-		if (!nfcam->exposing) {
+		if (CAMERA_EXPOSE != nfcam->state) {
 			if (fabs(coolerget - nfcam->coolerget) > 1.0) {
 				coolerget = nfcam->coolerget;
 				gLog.Write("CCD Temperature: %.1f", coolerget);
@@ -453,7 +472,7 @@ void cameracs::ThreadWait(const ptime &tmobs) {
 	 * - 综合对比: 线程, 定时器(deadline_timer), 条件变量(condition_variable)和消息队列(message_queue)
 	 *   的资源开销与响应效率, 选择线程
 	 */
-	nfsys_->state = CAMERA_PAUSE_TIME;
+	nfsys_->state = CAMCTL_WAIT_TIME;
 	SendCameraInfo(nfsys_->state);
 	ptime now = microsec_clock::universal_time();
 	ptime::time_duration_type dt = tmobs - now;
@@ -483,7 +502,7 @@ void cameracs::SendCameraInfo(int state) {
 	protonf_->reset();
 	protonf_->state	   = nfsys_->state;
 	protonf_->utc      = to_iso_extended_string(tmlastsend_);
-	if (nfsys_->state == CAMERA_COMPLETE) {
+	if (nfsys_->state == CAMCTL_COMPLETE) {
 		protonf_->filepath = nfobj_->filepath;
 		protonf_->filename = nfobj_->filename;
 		protonf_->filter   = nfobj_->filter;
@@ -511,12 +530,12 @@ void cameracs::StartExpose() {
 	mutex_lock lck(mtxsys_);
 	if (camera_->Expose(nfobj_->expdur, nfobj_->light)) {
 		gLog.Write("New exposure: No.<%d of %d>", nfobj_->frmno + 1, nfobj_->frmcnt);
-		nfsys_->state = CAMERA_EXPOSE;
+		nfsys_->state = CAMCTL_EXPOSE;
 	}
 	else {
 		gLog.Write("StartExpose", LOG_FAULT, "failed to start exposure: %s",
 				camera_->GetCameraInfo()->errmsg.c_str());
-		nfsys_->state = CAMERA_ERROR;
+		nfsys_->state = CAMCTL_ERROR;
 	}
 	SendCameraInfo(nfsys_->state);
 }
@@ -632,12 +651,12 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 	else if (iequals(proto_type, "object_info")) {// 观测目标信息
 		mutex_lock lck(mtxsys_);
 		boost::shared_ptr<ascproto_object_info> proto = boost::static_pointer_cast<ascproto_object_info>(proto_body);
-		if (nfsys_->state == CAMERA_IDLE) {
+		if (nfsys_->state == CAMCTL_IDLE) {
 			gLog.Write("New sequence: <name=%s, type=%s, expdur=%.3f, frmcnt=%d>",
 					proto->obj_id.c_str(), proto->imgtype.c_str(), proto->expdur, proto->frmcnt);
 			*nfobj_ = *proto;
 		}
-		else if (nfsys_->state == CAMERA_PAUSE_FLAT) {
+		else if (nfsys_->state == CAMCTL_WAIT_FLAT) {
 			nfobj_->ra = proto->ra;
 			nfobj_->dec= proto->dec;
 		}
@@ -655,8 +674,8 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 			if (nfobj_->obj_id.empty()) {
 				gLog.Write(NULL, LOG_WARN, "<expose start> is rejected for obj_id is empty");
 			}
-			else if (state == CAMERA_IDLE || state == CAMERA_PAUSE || state == CAMERA_PAUSE_FLAT) {
-				gLog.Write("<expose start> %s exposure sequence", state == CAMERA_IDLE ? "start" : "resume");
+			else if (state == CAMERA_IDLE || state == CAMCTL_PAUSE || state == CAMCTL_WAIT_FLAT) {
+				gLog.Write("<expose start> %s exposure sequence", state == CAMCTL_IDLE ? "start" : "resume");
 				nfsys_->command = EXPOSE_START;
 				resetdelay_ = 0;
 				post_message(MSG_PREPARE_EXPOSE);
@@ -675,12 +694,12 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 			if (state > CAMERA_IDLE) {
 				gLog.Write("<expose stop> abort exposure sequence");
 				nfsys_->command = EXPOSE_STOP;
-				if (state >= CAMERA_PAUSE) {// 暂停态: 直接结束
+				if (state >= CAMCTL_PAUSE) {// 暂停态: 直接结束
 					ExitThread(thrdWait_);
-					nfsys_->state = CAMERA_IDLE;
+					nfsys_->state = CAMCTL_IDLE;
 					SendCameraInfo(nfsys_->state);
 				}
-				else if (state == CAMERA_EXPOSE) {// 通过曝光逻辑调整系统状态
+				else if (state == CAMCTL_EXPOSE) {// 通过曝光逻辑调整系统状态
 					camera_->AbortExpose();
 				}
 			}
@@ -688,13 +707,13 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 			break;
 		case EXPOSE_PAUSE:
 		{
-			if (state == CAMERA_EXPOSE || state == CAMERA_COMPLETE || state == CAMERA_PAUSE_TIME) {
+			if (state == CAMERA_EXPOSE || state == CAMCTL_COMPLETE || state == CAMCTL_WAIT_TIME) {
 				gLog.Write("<expose pause> suspend exposure sequence");
 				nfsys_->command = EXPOSE_PAUSE;
 				if (state == CAMERA_EXPOSE) camera_->AbortExpose();
-				else if (state == CAMERA_PAUSE_TIME) {// 延时等待切换为等待
+				else if (state == CAMCTL_WAIT_TIME) {// 延时等待切换为等待
 					ExitThread(thrdWait_);
-					nfsys_->state = CAMERA_PAUSE;
+					nfsys_->state = CAMCTL_PAUSE;
 					SendCameraInfo(nfsys_->state);
 				}
 			}

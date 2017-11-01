@@ -39,7 +39,7 @@ enum EXPOSE_COMMAND {// 曝光指令
 	EXPOSE_START = 1,	//< 开始曝光
 	EXPOSE_STOP,		//< 中止曝光
 	EXPOSE_PAUSE,		//< 暂停曝光
-	EXPOSE_RESUME,
+	EXPOSE_RESUME,		//< 恢复被暂停的曝光流程
 	EXPOSE_LAST			//< 占位, 无效指令
 };
 

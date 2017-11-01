@@ -14,6 +14,9 @@
  * @date 2017年6月8日
  * - 更新相机工作状态
  * - 更新相机控制指令
+ *
+ * @date 2017年11月1日
+ * - 更新相机工作状态, 增加异常处理
  */
 
 #ifndef CAMERACS_H_
@@ -28,16 +31,6 @@
 #include "parameter.h"
 #include "CameraBase.h"
 #include "FileTransferClient.h"
-
-enum CameraState {// 相机工作状态
-	CAMERA_ERROR,		//< 错误
-	CAMERA_IDLE,		//< 空闲
-	CAMERA_EXPOSE,		//< 曝光过程
-	CAMERA_COMPLETE,	//< 曝光正常结束
-	CAMERA_PAUSE,		//< 暂停: 外界指令触发
-	CAMERA_PAUSE_TIME,	//< 暂停: 帧间延时或曝光序列之前
-	CAMERA_PAUSE_FLAT,	//< 暂停: 完成一帧平场后等待转台重新指向
-};
 
 class cameracs : public msgque_base {
 public:
@@ -57,6 +50,7 @@ private:
 		MSG_PROCESS_EXPOSE,	//< 消息: 曝光中
 		MSG_COMPLETE_EXPOSE,//< 消息: 曝光正常结束
 		MSG_ABORT_EXPOSE,	//< 消息: 完成物理曝光终止过程
+		MSG_FAIL_EXPOSE,	//< 消息: 曝光过程中错误
 		MSG_COMPLETE_WAIT,	//< 消息: 等待线程正常结束
 		MSG_CCS_END
 	};
@@ -266,6 +260,10 @@ protected:
 	 * @brief 物理上完成终止曝光流程
 	 */
 	void OnAbortExpose();
+	/*!
+	 * @brief 曝光过程中错误
+	 */
+	void OnFailExpose();
 	/*!
 	 * @brief 延时等待线程正常结束
 	 */
