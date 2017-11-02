@@ -28,7 +28,7 @@
 #include "GLog.h"
 //#include "CameraAndorCCD.h"
 //#include "CameraFLI.h"
-#include "CameraApogee.h"
+//#include "CameraApogee.h"
 //#include "CameraPI.h"
 #include "CameraGY.h"
 
@@ -287,9 +287,9 @@ void cameracs::OnAbortExpose() {
 		post_message(MSG_PREPARE_EXPOSE);
 	}
 	else {// nfsys_->command == EXPOSE_START
-		gLog.Write("exposure failed", LOG_FAULT, "%s",
+		gLog.Write("exposure failed", LOG_FAULT, "%s. try to start expose again",
 				camera_->GetCameraInfo()->errmsg.c_str());
-//		nfsys_->state = CAMCTL_ERROR;
+		nfsys_->state = CAMCTL_ABORT;
 		post_message(MSG_PREPARE_EXPOSE);
 	}
 	// 通知服务器
@@ -322,8 +322,8 @@ bool cameracs::connect_camera() {
 		break;
 	case 3:	// Apogee CCD
 	{
-		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
-		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
+//		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
+//		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
 	}
 		break;
 	case 4:	// PI CCD
