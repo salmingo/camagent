@@ -28,7 +28,7 @@
 #include "GLog.h"
 //#include "CameraAndorCCD.h"
 //#include "CameraFLI.h"
-//#include "CameraApogee.h"
+#include "CameraApogee.h"
 //#include "CameraPI.h"
 #include "CameraGY.h"
 
@@ -287,10 +287,9 @@ void cameracs::OnAbortExpose() {
 		post_message(MSG_PREPARE_EXPOSE);
 	}
 	else {// nfsys_->command == EXPOSE_START
-		// 曝光失败
 		gLog.Write("exposure failed", LOG_FAULT, "%s",
 				camera_->GetCameraInfo()->errmsg.c_str());
-		nfsys_->state = CAMCTL_ERROR;
+//		nfsys_->state = CAMCTL_ERROR;
 		post_message(MSG_PREPARE_EXPOSE);
 	}
 	// 通知服务器
@@ -298,7 +297,9 @@ void cameracs::OnAbortExpose() {
 }
 
 void cameracs::OnFailExpose() {
-
+	mutex_lock lck(mtxsys_);
+	gLog.Write("exposure failed", LOG_FAULT, "%s", camera_->GetCameraInfo()->errmsg.c_str());
+	nfsys_->state = CAMCTL_ERROR;
 }
 
 void cameracs::OnCompleteWait() {
@@ -321,8 +322,8 @@ bool cameracs::connect_camera() {
 		break;
 	case 3:	// Apogee CCD
 	{
-//		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
-//		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
+		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
+		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
 	}
 		break;
 	case 4:	// PI CCD
@@ -670,11 +671,15 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 		int state = nfsys_->state;
 		switch(proto->command) {
 		case EXPOSE_START:
+		case EXPOSE_RESUME:
 		{
-			if (nfobj_->obj_id.empty()) {
+			if (state == CAMCTL_ERROR) {
+				gLog.Write(NULL, LOG_FAULT, "<expose start> is rejected for system is error");
+			}
+			else if (nfobj_->obj_id.empty()) {
 				gLog.Write(NULL, LOG_WARN, "<expose start> is rejected for obj_id is empty");
 			}
-			else if (state == CAMERA_IDLE || state == CAMCTL_PAUSE || state == CAMCTL_WAIT_FLAT) {
+			else if (state == CAMCTL_IDLE || state == CAMCTL_PAUSE || state == CAMCTL_WAIT_FLAT) {
 				gLog.Write("<expose start> %s exposure sequence", state == CAMCTL_IDLE ? "start" : "resume");
 				nfsys_->command = EXPOSE_START;
 				resetdelay_ = 0;
@@ -691,7 +696,7 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 			break;
 		case EXPOSE_STOP:
 		{
-			if (state > CAMERA_IDLE) {
+			if (state > CAMCTL_IDLE) {
 				gLog.Write("<expose stop> abort exposure sequence");
 				nfsys_->command = EXPOSE_STOP;
 				if (state >= CAMCTL_PAUSE) {// 暂停态: 直接结束

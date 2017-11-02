@@ -1891,7 +1891,17 @@ cameracs.o: cameracs.cpp /usr/include/stdc-predef.h /usr/include/math.h \
  /usr/local/include/boost/format/parsing.hpp \
  /usr/local/include/boost/format/free_funcs.hpp \
  /usr/local/include/boost/format/detail/unset_macros.hpp \
- FileTransferClient.h GLog.h CameraGY.h udp_asio.h
+ FileTransferClient.h GLog.h CameraApogee.h \
+ /usr/local/include/libapogee-3.0/apogee/Alta.h \
+ /usr/local/include/libapogee-3.0/apogee/ApogeeCam.h \
+ /usr/include/c++/4.8.2/tr1/memory \
+ /usr/include/c++/4.8.2/ext/concurrence.h \
+ /usr/include/c++/4.8.2/tr1/type_traits \
+ /usr/include/c++/4.8.2/tr1/shared_ptr.h \
+ /usr/local/include/libapogee-3.0/apogee/CameraStatusRegs.h \
+ /usr/local/include/libapogee-3.0/apogee/DefDllExport.h \
+ /usr/local/include/libapogee-3.0/apogee/CameraInfo.h CameraGY.h \
+ udp_asio.h
 
 /usr/include/stdc-predef.h:
 
@@ -5894,6 +5904,26 @@ CameraBase.h:
 FileTransferClient.h:
 
 GLog.h:
+
+CameraApogee.h:
+
+/usr/local/include/libapogee-3.0/apogee/Alta.h:
+
+/usr/local/include/libapogee-3.0/apogee/ApogeeCam.h:
+
+/usr/include/c++/4.8.2/tr1/memory:
+
+/usr/include/c++/4.8.2/ext/concurrence.h:
+
+/usr/include/c++/4.8.2/tr1/type_traits:
+
+/usr/include/c++/4.8.2/tr1/shared_ptr.h:
+
+/usr/local/include/libapogee-3.0/apogee/CameraStatusRegs.h:
+
+/usr/local/include/libapogee-3.0/apogee/DefDllExport.h:
+
+/usr/local/include/libapogee-3.0/apogee/CameraInfo.h:
 
 CameraGY.h:
 

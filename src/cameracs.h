@@ -308,7 +308,7 @@ protected:
 	 * @brief 曝光进度回调函数
 	 * @param left    曝光剩余时间, 量纲: 秒
 	 * @param percent 曝光进度, 量纲: 百分比
-	 * @param state   图像数据状态, -1: 中止曝光, 抛弃数据; 0: 曝光中; 1: 图像已就绪, 可以存储FITS文件
+	 * @param state   图像数据状态
 	 */
 	void ExposeProcessCB(const double left, const double percent, const int state);
 	/*!
