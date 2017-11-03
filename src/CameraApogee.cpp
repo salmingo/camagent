@@ -38,9 +38,9 @@ bool CameraApogee::OpenCamera() {
 			do {// 尝试多次初始化
 				if (count) boost::this_thread::sleep_for(duration);
 				altacam_->Init();
-			} while(++count <= 10 && CameraState() > 0);
+			} while(++count <= 10 && CameraState() > CAMERA_IDLE);
 
-			if (CameraState()) {
+			if (CameraState() == CAMERA_ERROR) {
 				altacam_->CloseConnection();
 				nfcam_->errmsg = "Wrong initial camera status";
 			}
