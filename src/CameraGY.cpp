@@ -53,7 +53,7 @@ bool CameraGY::OpenCamera() {
 
 		msgcnt_ = 0;
 		do {
-			((uint16_t*)&buff1)[3] = htons(++msgcnt_);
+			((uint16_t*)&buff1)[3] = htons(MsgCount());
 			udpcmd_->write(buff1.c_array(), buff1.size());
 			buff2 = udpcmd_->block_read(bytercv);
 		} while (bytercv < 48 && ++trycnt < 3);
@@ -241,12 +241,16 @@ CAMERA_STATUS CameraGY::DownloadImage() {
 	return state;
 }
 
+uint16_t CameraGY::MsgCount() {
+	return (++msgcnt_ ? msgcnt_ : 1);
+}
+
 void CameraGY::Write(uint32_t addr, uint32_t val) {
 	mutex_lock lck(mtxReg_);
 	boost::array<uint8_t, 16> buff1 = {0x42, 0x01, 0x00, 0x82, 0x00, 0x08};
 	int n;
 
-	((uint16_t*) &buff1)[3] = htons(++msgcnt_);
+	((uint16_t*) &buff1)[3] = htons(MsgCount());
 	((uint32_t*) &buff1)[2] = htonl(addr);
 	((uint32_t*) &buff1)[3] = htonl(val);
 	udpcmd_->write(buff1.c_array(), buff1.size());
@@ -265,7 +269,7 @@ void CameraGY::Read(uint32_t addr, uint32_t &val) {
 	boost::array<uint8_t, 12> buff1 = {0x42, 0x01, 0x00, 0x80, 0x00, 0x04};
 	int n;
 
-	((uint16_t*) &buff1)[3] = htons(++msgcnt_);
+	((uint16_t*) &buff1)[3] = htons(MsgCount());
 	((uint32_t*) &buff1)[2] = htonl(addr);
 	udpcmd_->write(buff1.c_array(), buff1.size());
 	const uint8_t *buff2 = udpcmd_->block_read(n);
@@ -294,7 +298,7 @@ void CameraGY::Retransmit() {
 void CameraGY::Retransmit(uint32_t iPack0, uint32_t iPack1) {
 	mutex_lock lck(mtxReg_);
 	boost::array<uint8_t, 20> buff = {0x42, 0x00, 0x00, 0x40, 0x00, 0x0c};
-	((uint16_t*)&buff)[3] = htons(++msgcnt_);
+	((uint16_t*)&buff)[3] = htons(MsgCount());
 	((uint32_t*)&buff)[2] = htonl(idFrame_);
 	((uint32_t*)&buff)[3] = htonl(iPack0);
 	((uint32_t*)&buff)[4] = htonl(iPack1);
