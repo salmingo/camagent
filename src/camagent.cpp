@@ -19,29 +19,40 @@ using namespace std;
 GLog gLog;
 
 int main(int argc, char **argv) {
-	param_config param;
-	if (param.bShowImg) system("ds9&");
-
-	boost::asio::io_service ios;
-	boost::asio::signal_set signals(ios, SIGINT, SIGTERM);  // interrupt signal
-	signals.async_wait(boost::bind(&boost::asio::io_service::stop, &ios));
-
-	if (!MakeItDaemon(ios)) return 1;
-	if (!isProcSingleton(gPIDPath)) {
-		gLog.Write("%s is already running or failed to access PID file", DAEMON_NAME);
-		return 2;
+	if (argc >= 2) {// 处理命令行参数
+		if (strcmp(argv[1], "-d") == 0) {
+			param_config param;
+			param.InitFile(gConfigPath);
+		}
+		else {
+			printf("Usage: focaes <-d>\n");
+		}
 	}
+	else {// 常规工作模式
+		param_config param;
+		if (param.bShowImg) system("ds9&");
 
-	gLog.Write("Try to launch %s %s %s as daemon", DAEMON_NAME, DAEMON_VERSION, DAEMON_AUTHORITY);
-	// 主程序入口
-	cameracs ccs;
-	if (ccs.Start()) {
-		gLog.Write("Daemon goes running");
-		ios.run();
-		ccs.Stop();
+		boost::asio::io_service ios;
+		boost::asio::signal_set signals(ios, SIGINT, SIGTERM);  // interrupt signal
+		signals.async_wait(boost::bind(&boost::asio::io_service::stop, &ios));
+
+		if (!MakeItDaemon(ios)) return 1;
+		if (!isProcSingleton(gPIDPath)) {
+			gLog.Write("%s is already running or failed to access PID file", DAEMON_NAME);
+			return 2;
+		}
+
+		gLog.Write("Try to launch %s %s %s as daemon", DAEMON_NAME, DAEMON_VERSION, DAEMON_AUTHORITY);
+		// 主程序入口
+		cameracs ccs(&ios);
+		if (ccs.Start()) {
+			gLog.Write("Daemon goes running");
+			ios.run();
+			ccs.Stop();
+		}
+		else gLog.Write(NULL, LOG_FAULT, "Fail to launch %s", DAEMON_NAME);
+		gLog.Write("Daemon stopped");
 	}
-	else gLog.Write(NULL, LOG_FAULT, "Fail to launch %s", DAEMON_NAME);
-	gLog.Write("Daemon stopped");
 
 	return 0;
 }

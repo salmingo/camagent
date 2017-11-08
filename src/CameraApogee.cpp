@@ -133,8 +133,9 @@ double CameraApogee::SensorTemperature() {
 	try {
 		val = altacam_->GetTempCcd();
 	}
-	catch(std::runtime_error &ex) {
-		nfcam_->errmsg = ex.what();
+	catch(...) {
+		nfcam_->errmsg = "unknown error during read sensor temperature";
+		exposeproc_(0, 0, (int) CAMERA_ERROR);
 	}
 	return val;
 }

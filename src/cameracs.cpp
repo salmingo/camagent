@@ -34,7 +34,8 @@
 
 using namespace boost;
 
-cameracs::cameracs() {
+cameracs::cameracs(boost::asio::io_service* ioserv) {
+	io_main_  = ioserv;
 	firstimg_ = true;
 	resetdelay_ = 0;
 	registered_ = false;
@@ -493,7 +494,7 @@ void cameracs::ExitThread(threadptr &thrd) {
 }
 
 void cameracs::SendCameraInfo(int state) {
-	if (!tcpgc_.unique() || !tcpgc_->is_open()) return;
+	if (!(tcpgc_.unique() && tcpgc_->is_open() && camera_.unique())) return;
 
 	mutex_lock lck(mtxTcp_);
 	int n;
@@ -528,6 +529,8 @@ void cameracs::SendCameraInfo(int state) {
 }
 
 void cameracs::StartExpose() {
+	if (!camera_.unique()) return;
+
 	mutex_lock lck(mtxsys_);
 	if (camera_->Expose(nfobj_->expdur, nfobj_->light)) {
 		gLog.Write("New exposure: No.<%d of %d>", nfobj_->frmno + 1, nfobj_->frmcnt);

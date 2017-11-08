@@ -17,6 +17,13 @@
  *
  * @date 2017年11月1日
  * - 更新相机工作状态, 增加异常处理
+ *
+ * @date 2017年11月8日
+ * - 加入相机重连机制, 需要在与相机操作和访问前查看相机连接状态
+ * - 重连机制:
+ *   (1) 当相机出错时, 断开与相机连接
+ *   (2) 间隔周期1、2、3、4、5分钟, 尝试重连相机
+ *   (3) 连续5次重连失败, 退出程序
  */
 
 #ifndef CAMERACS_H_
@@ -34,7 +41,7 @@
 
 class cameracs : public msgque_base {
 public:
-	cameracs();
+	cameracs(boost::asio::io_service* ioserv);
 	virtual ~cameracs();
 
 private:
@@ -182,6 +189,7 @@ private:
 	};
 
 	/* 局部成员变量 */
+	boost::asio::io_service* io_main_;	//< 主io服务, 用于内部终止程序
 	boost::shared_ptr<param_config>			param_;		//< 程序配置参数
 	boost::shared_ptr<system_info>			nfsys_;		//< 系统信息
 	boost::shared_ptr<object_info>			nfobj_;		//< 观测目标

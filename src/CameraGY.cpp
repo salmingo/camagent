@@ -242,7 +242,8 @@ CAMERA_STATUS CameraGY::DownloadImage() {
 }
 
 uint16_t CameraGY::MsgCount() {
-	return (++msgcnt_ ? msgcnt_ : 1);
+	if (++msgcnt_ == 0) msgcnt_ = 1;
+	return msgcnt_;
 }
 
 void CameraGY::Write(uint32_t addr, uint32_t val) {
@@ -258,8 +259,9 @@ void CameraGY::Write(uint32_t addr, uint32_t val) {
 
 	if (n != 12 || buff2[11] != 0x01) {
 		char txt[200];
+		int i;
 		int n1 = sprintf(txt, "length<%d> of write register<%0X>: ", n, addr);
-		for (int i = 0; i < n; ++i) n1 += sprintf(txt + n1, "%02X ", buff2[i]);
+		for (i = 0; i < n; ++i) n1 += sprintf(txt + n1, "%02X ", buff2[i]);
 		throw std::runtime_error(txt);
 	}
 }
