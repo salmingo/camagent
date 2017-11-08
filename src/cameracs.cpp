@@ -585,7 +585,7 @@ bool cameracs::SaveFITSFile() {
 	fits_write_key(fitsptr, TSTRING, "TIME-END", (void*)nfcam->timeend.c_str(), "UTC time of end observation", &status);
 	fits_write_key(fitsptr, TDOUBLE, "JD", &nfcam->jd, "Julian day of begin observation", &status);
 	fits_write_key(fitsptr, TDOUBLE, "EXPTIME", &nfcam->eduration, "exposure duration", &status);
-	fits_write_key(fitsptr, TDOUBLE, "GAIN", &nfcam->gain, "", &status);
+	fits_write_key(fitsptr, TUINT,   "GAIN", &nfcam->gain, "", &status);
 	fits_write_key(fitsptr, TDOUBLE, "TEMPSET", &nfcam->coolerset, "cooler set point", &status);
 	fits_write_key(fitsptr, TDOUBLE, "TEMPACT", &nfcam->coolerget, "cooler actual point", &status);
 	fits_write_key(fitsptr, TSTRING, "TERMTYPE", (void*)param_->termType.c_str(), "terminal type", &status);
@@ -700,6 +700,7 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 				gLog.Write("<expose stop> abort exposure sequence");
 				nfsys_->command = EXPOSE_STOP;
 				if (state >= CAMCTL_PAUSE) {// 暂停态: 直接结束
+					gLog.Write("exposure sequence is aborted");
 					ExitThread(thrdWait_);
 					nfsys_->state = CAMCTL_IDLE;
 					SendCameraInfo(nfsys_->state);
