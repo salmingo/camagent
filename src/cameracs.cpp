@@ -241,7 +241,7 @@ void cameracs::OnCompleteExpose() {
 	SendCameraInfo(nfsys_->state);
 
 	/* 检测是否需要继续曝光 */
-	bool bcont = nfsys_->command == EXPOSE_START // 控制指令未变更
+	bool bcont = nfsys_->command == EXPOSE_START// 指令要求继续曝光
 			&& (nfobj_->frmcnt == -1 || nfobj_->frmno < nfobj_->frmcnt); // 曝光序列未结束
 	if (bcont && isflat) {// 平场需要特殊处理
 		if (mean < param_->tsaturate) mean += 65535;	// 特殊处理: 无饱和抑制功能相机
@@ -282,13 +282,8 @@ void cameracs::OnAbortExpose() {
 		gLog.Write("exposure sequence is suspend");
 		nfsys_->state = CAMCTL_PAUSE;
 	}
-	else if (nfsys_->command == EXPOSE_RESUME) {
-		gLog.Write("exposure sequence is resumed");
-		nfsys_->command = EXPOSE_START;
-		post_message(MSG_PREPARE_EXPOSE);
-	}
 	else {// nfsys_->command == EXPOSE_START
-		gLog.Write("exposure failed", LOG_FAULT, "%s. try to start expose again",
+		gLog.Write("OnAbortExpose", LOG_FAULT, "%s. try to start expose again",
 				camera_->GetCameraInfo()->errmsg.c_str());
 		nfsys_->state = CAMCTL_ABORT;
 		post_message(MSG_PREPARE_EXPOSE);
@@ -474,15 +469,21 @@ void cameracs::ThreadWait(const ptime &tmobs) {
 	 * - 综合对比: 线程, 定时器(deadline_timer), 条件变量(condition_variable)和消息队列(message_queue)
 	 *   的资源开销与响应效率, 选择线程
 	 */
-	nfsys_->state = CAMCTL_WAIT_TIME;
-	SendCameraInfo(nfsys_->state);
+	{
+		mutex_lock lck(mtxsys_);
+		nfsys_->state = CAMCTL_WAIT_TIME;
+		SendCameraInfo(nfsys_->state);
+	}
 	ptime now = microsec_clock::universal_time();
 	ptime::time_duration_type dt = tmobs - now;
 	int val = dt.total_microseconds();
 	if (val > 0) boost::this_thread::sleep_for(boost::chrono::microseconds(val));
 	// 线程正常结束
-	StartExpose();
 	post_message(MSG_COMPLETE_WAIT);
+	{
+		mutex_lock lck(mtxsys_);
+		if (nfsys_->state == CAMCTL_WAIT_TIME) StartExpose();
+	}
 }
 
 void cameracs::ExitThread(threadptr &thrd) {
@@ -676,11 +677,11 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 		case EXPOSE_START:
 		case EXPOSE_RESUME:
 		{
-			if (state == CAMCTL_ERROR) {
-				gLog.Write(NULL, LOG_FAULT, "<expose start> is rejected for system is error");
-			}
-			else if (nfobj_->obj_id.empty()) {
+			if (nfobj_->obj_id.empty()) {
 				gLog.Write(NULL, LOG_WARN, "<expose start> is rejected for obj_id is empty");
+			}
+			else if (state == CAMCTL_ERROR) {
+				gLog.Write(NULL, LOG_FAULT, "<expose start> is rejected for system is error");
 			}
 			else if (state == CAMCTL_IDLE || state == CAMCTL_PAUSE || state == CAMCTL_WAIT_FLAT) {
 				gLog.Write("<expose start> %s exposure sequence", state == CAMCTL_IDLE ? "start" : "resume");
@@ -688,9 +689,9 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 				resetdelay_ = 0;
 				post_message(MSG_PREPARE_EXPOSE);
 			}
-			else if (nfsys_->command == EXPOSE_PAUSE) {
+			else if (nfsys_->command == EXPOSE_PAUSE) {// PAUSE指令未执行完又收到曝光指令
 				gLog.Write("<expose start> try to resume exposure sequence");
-				nfsys_->command = EXPOSE_RESUME;
+				nfsys_->command = EXPOSE_START;
 			}
 			else {
 				gLog.Write(NULL, LOG_WARN, "<expose start> is rejected for system is busy");
@@ -702,7 +703,7 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 			if (state > CAMCTL_IDLE) {
 				gLog.Write("<expose stop> abort exposure sequence");
 				nfsys_->command = EXPOSE_STOP;
-				if (state >= CAMCTL_PAUSE) {// 暂停态: 直接结束
+				if (state >= CAMCTL_ABORT) {// 暂停态: 直接结束
 					gLog.Write("exposure sequence is aborted");
 					ExitThread(thrdWait_);
 					nfsys_->state = CAMCTL_IDLE;
@@ -716,13 +717,14 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 			break;
 		case EXPOSE_PAUSE:
 		{
-			if (state == CAMERA_EXPOSE || state == CAMCTL_COMPLETE || state == CAMCTL_WAIT_TIME) {
+			if (state == CAMERA_EXPOSE || state == CAMCTL_COMPLETE || state == CAMCTL_ABORT || state == CAMCTL_WAIT_TIME) {
 				gLog.Write("<expose pause> suspend exposure sequence");
 				nfsys_->command = EXPOSE_PAUSE;
 				if (state == CAMERA_EXPOSE) camera_->AbortExpose();
 				else if (state == CAMCTL_WAIT_TIME) {// 延时等待切换为等待
-					ExitThread(thrdWait_);
+					gLog.Write("exposure sequence is suspended");
 					nfsys_->state = CAMCTL_PAUSE;
+					ExitThread(thrdWait_);
 					SendCameraInfo(nfsys_->state);
 				}
 			}
