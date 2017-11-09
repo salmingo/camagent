@@ -84,15 +84,16 @@ void cameracs::Stop() {
 }
 
 void cameracs::register_messages() {
-	const cbtype slot1 = boost::bind(&cameracs::OnConnectGC,     this, _1);
-	const cbtype slot2 = boost::bind(&cameracs::OnReceiveGC,     this);
-	const cbtype slot3 = boost::bind(&cameracs::OnCloseGC,       this);
-	const cbtype slot4 = boost::bind(&cameracs::OnPrepareExpose,  this);
+	const cbtype slot1 = boost::bind(&cameracs::OnConnectGC,     this, _1, _2);
+	const cbtype slot2 = boost::bind(&cameracs::OnReceiveGC,     this, _1, _2);
+	const cbtype slot3 = boost::bind(&cameracs::OnCloseGC,       this, _1, _2);
+	const cbtype slot4 = boost::bind(&cameracs::OnPrepareExpose,  this, _1, _2);
 	const cbtype slot5 = boost::bind(&cameracs::OnProcessExpose,  this, _1, _2);
-	const cbtype slot6 = boost::bind(&cameracs::OnCompleteExpose, this);
-	const cbtype slot7 = boost::bind(&cameracs::OnAbortExpose,    this);
-	const cbtype slot8 = boost::bind(&cameracs::OnFailExpose,     this);
-	const cbtype slot9 = boost::bind(&cameracs::OnCompleteWait,   this);
+	const cbtype slot6 = boost::bind(&cameracs::OnCompleteExpose, this, _1, _2);
+	const cbtype slot7 = boost::bind(&cameracs::OnAbortExpose,    this, _1, _2);
+	const cbtype slot8 = boost::bind(&cameracs::OnFailExpose,     this, _1, _2);
+	const cbtype slot9 = boost::bind(&cameracs::OnCompleteWait,   this, _1, _2);
+	const cbtype slot10= boost::bind(&cameracs::OnPeriodInfo,     this, _1, _2);
 
 	register_message(MSG_CONNECT_GC,      slot1);
 	register_message(MSG_RECEIVE_GC,      slot2);
@@ -103,6 +104,7 @@ void cameracs::register_messages() {
 	register_message(MSG_ABORT_EXPOSE,    slot7);
 	register_message(MSG_FAIL_EXPOSE,     slot8);
 	register_message(MSG_COMPLETE_WAIT,   slot9);
+	register_message(MSG_PERIOD_INFO,     slot10);
 }
 
 void cameracs::ConnectedGC(const long client, const long ec) {
@@ -113,7 +115,7 @@ void cameracs::ReceivedGC(const long client, const long ec) {
 	post_message(ec == 0 ? MSG_RECEIVE_GC: MSG_CLOSE_GC);
 }
 
-void cameracs::OnConnectGC(const long ec) {
+void cameracs::OnConnectGC(long ec, long) {
 	if(!ec) {
 		gLog.Write("SUCCEED: Connection with General Control Server");
 		// 发送第一条消息, 声明设备在网络中的编号
@@ -122,7 +124,7 @@ void cameracs::OnConnectGC(const long ec) {
 	else tcpgc_.reset();
 }
 
-void cameracs::OnReceiveGC() {
+void cameracs::OnReceiveGC(long, long) {
 	if (!tcpgc_.unique() || !tcpgc_->is_open()) return;
 
 	char term[] = "\n";	   // 换行符作为信息结束标记
@@ -149,14 +151,14 @@ void cameracs::OnReceiveGC() {
 	}
 }
 
-void cameracs::OnCloseGC() {
+void cameracs::OnCloseGC(long, long) {
 	gLog.Write("CLOSED: Connection with General Control Server");
 	tmlastconnect_ = microsec_clock::universal_time();
 	tcpgc_.reset();
 	registered_ = false;
 }
 
-void cameracs::OnPrepareExpose() {
+void cameracs::OnPrepareExpose(long, long) {
 	if (param_->bNTP && ntp_.unique()) ntp_->SynchClock();
 
 	boost::shared_ptr<devcam_info> nfcam = camera_->GetCameraInfo();
@@ -204,17 +206,17 @@ void cameracs::OnPrepareExpose() {
 		StartExpose();
 	}
 	else {
+		nfsys_->state = CAMCTL_WAIT_TIME;
+		SendCameraInfo(nfsys_->state);
 		thrdWait_.reset(new boost::thread(boost::bind(&cameracs::ThreadWait, this, tmobs)));
 	}
 }
 
 void cameracs::OnProcessExpose(long left, long percent) {
-	//...暂空缺
+	// 曝光进度不做处理
 }
 
-void cameracs::OnCompleteExpose() {
-	mutex_lock lck(mtxsys_);
-
+void cameracs::OnCompleteExpose(long, long) {
 	ptime now = microsec_clock::universal_time();
 	boost::shared_ptr<ascproto_camera_info> proto = boost::make_shared<ascproto_camera_info>();
 	boost::shared_ptr<devcam_info> nfcam = camera_->GetCameraInfo();
@@ -264,15 +266,14 @@ void cameracs::OnCompleteExpose() {
 			SendCameraInfo(nfsys_->state);
 		}
 	}
-	else {
+	else if (nfsys_->command != EXPOSE_PAUSE) {
 		gLog.Write("exposure sequence is over");
 		nfsys_->state = CAMCTL_IDLE;
 		SendCameraInfo(nfsys_->state);
 	}
 }
 
-void cameracs::OnAbortExpose() {
-	mutex_lock lck(mtxsys_);
+void cameracs::OnAbortExpose(long, long) {
 	int state = nfsys_->state;
 	if (nfsys_->command == EXPOSE_STOP) {
 		gLog.Write("exposure sequence is aborted");
@@ -292,14 +293,19 @@ void cameracs::OnAbortExpose() {
 	if (state != nfsys_->state) SendCameraInfo(nfsys_->state);
 }
 
-void cameracs::OnFailExpose() {
-	mutex_lock lck(mtxsys_);
+void cameracs::OnFailExpose(long, long) {
 	gLog.Write("exposure failed", LOG_FAULT, "%s", camera_->GetCameraInfo()->errmsg.c_str());
 	nfsys_->state = CAMCTL_ERROR;
 }
 
-void cameracs::OnCompleteWait() {
+void cameracs::OnCompleteWait(long, long) {
 	thrdWait_.reset();
+
+	if (nfsys_->state == CAMCTL_WAIT_TIME) StartExpose();
+}
+
+void cameracs::OnPeriodInfo(long, long) {
+	SendCameraInfo(-1);
 }
 
 bool cameracs::connect_camera() {
@@ -421,7 +427,7 @@ void cameracs::ExposeProcessCB(const double left, const double percent, const in
 		post_message(MSG_ABORT_EXPOSE);
 		break;
 	case CAMERA_EXPOSE: // 曝光过程中
-		post_message(MSG_PROCESS_EXPOSE, long(left * 1E6), long(percent * 100));
+//		post_message(MSG_PROCESS_EXPOSE, long(left * 1E6), long(percent * 100));
 		break;
 	case CAMERA_IMGRDY: // 已下载图像
 		post_message(MSG_COMPLETE_EXPOSE);
@@ -455,7 +461,7 @@ void cameracs::ThreadCycle() {
 
 		// 向总控服务器发送定时信息, 及检查网络连接有效性
 		if (tcpgc_.unique() && tcpgc_->is_open()) {
-			if (registered_ && dt.total_seconds() >= 1) SendCameraInfo(-1);
+			if (registered_ && dt.total_seconds() >= 1) post_message(MSG_PERIOD_INFO);
 		}
 		else {// 尝试重联服务器
 			dt = now - tmlastconnect_;
@@ -469,21 +475,12 @@ void cameracs::ThreadWait(const ptime &tmobs) {
 	 * - 综合对比: 线程, 定时器(deadline_timer), 条件变量(condition_variable)和消息队列(message_queue)
 	 *   的资源开销与响应效率, 选择线程
 	 */
-	{
-		mutex_lock lck(mtxsys_);
-		nfsys_->state = CAMCTL_WAIT_TIME;
-		SendCameraInfo(nfsys_->state);
-	}
 	ptime now = microsec_clock::universal_time();
 	ptime::time_duration_type dt = tmobs - now;
-	int val = dt.total_microseconds();
+	int val = dt.total_microseconds() - 100;
 	if (val > 0) boost::this_thread::sleep_for(boost::chrono::microseconds(val));
 	// 线程正常结束
 	post_message(MSG_COMPLETE_WAIT);
-	{
-		mutex_lock lck(mtxsys_);
-		if (nfsys_->state == CAMCTL_WAIT_TIME) StartExpose();
-	}
 }
 
 void cameracs::ExitThread(threadptr &thrd) {
@@ -497,7 +494,6 @@ void cameracs::ExitThread(threadptr &thrd) {
 void cameracs::SendCameraInfo(int state) {
 	if (!(tcpgc_.unique() && tcpgc_->is_open() && camera_.unique())) return;
 
-	mutex_lock lck(mtxTcp_);
 	int n;
 	boost::shared_ptr<devcam_info> nfcam = camera_->GetCameraInfo();
 	tmlastsend_ = microsec_clock::universal_time();
@@ -530,9 +526,6 @@ void cameracs::SendCameraInfo(int state) {
 }
 
 void cameracs::StartExpose() {
-	if (!camera_.unique()) return;
-
-	mutex_lock lck(mtxsys_);
 	if (camera_->Expose(nfobj_->expdur, nfobj_->light)) {
 		gLog.Write("New exposure: No.<%d of %d>", nfobj_->frmno + 1, nfobj_->frmcnt);
 		nfsys_->state = CAMCTL_EXPOSE;
@@ -589,7 +582,7 @@ bool cameracs::SaveFITSFile() {
 	fits_write_key(fitsptr, TSTRING, "TIME-END", (void*)nfcam->timeend.c_str(), "UTC time of end observation", &status);
 	fits_write_key(fitsptr, TDOUBLE, "JD", &nfcam->jd, "Julian day of begin observation", &status);
 	fits_write_key(fitsptr, TDOUBLE, "EXPTIME", &nfcam->eduration, "exposure duration", &status);
-	fits_write_key(fitsptr, TUINT,   "GAIN", &nfcam->gain, "", &status);
+	fits_write_key(fitsptr, TUINT,   "GAIN",    &nfcam->gain, "", &status);
 	fits_write_key(fitsptr, TDOUBLE, "TEMPSET", &nfcam->coolerset, "cooler set point", &status);
 	fits_write_key(fitsptr, TDOUBLE, "TEMPACT", &nfcam->coolerget, "cooler actual point", &status);
 	fits_write_key(fitsptr, TSTRING, "TERMTYPE", (void*)param_->termType.c_str(), "terminal type", &status);
@@ -654,7 +647,6 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 		nfobj_->focus = int(proto->value);
 	}
 	else if (iequals(proto_type, "object_info")) {// 观测目标信息
-		mutex_lock lck(mtxsys_);
 		boost::shared_ptr<ascproto_object_info> proto = boost::static_pointer_cast<ascproto_object_info>(proto_body);
 		if (nfsys_->state == CAMCTL_IDLE) {
 			gLog.Write("New sequence: <name=%s, type=%s, expdur=%.3f, frmcnt=%d>",
@@ -670,7 +662,6 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 		}
 	}
 	else if (iequals(proto_type, "expose")) {// 曝光指令
-		mutex_lock lck(mtxsys_);
 		boost::shared_ptr<ascproto_expose> proto = boost::static_pointer_cast<ascproto_expose>(proto_body);
 		int state = nfsys_->state;
 		switch(proto->command) {
@@ -705,8 +696,8 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 				nfsys_->command = EXPOSE_STOP;
 				if (state >= CAMCTL_ABORT) {// 暂停态: 直接结束
 					gLog.Write("exposure sequence is aborted");
-					ExitThread(thrdWait_);
 					nfsys_->state = CAMCTL_IDLE;
+					ExitThread(thrdWait_);
 					SendCameraInfo(nfsys_->state);
 				}
 				else if (state == CAMCTL_EXPOSE) {// 通过曝光逻辑调整系统状态

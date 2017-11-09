@@ -18,7 +18,17 @@
  * @date 2017年11月1日
  * - 更新相机工作状态, 增加异常处理
  *
- * @date 2017年11月8日
+ * @version 0.7
+ * @date 2017年11月9日
+ * - 删除互斥锁mtxsys_和mtxTcp_, 由消息队列实现互斥
+ * - 在OnCompleteWait中启动曝光
+ *
+ * @date 2017年11月??日
+ * - fits文件首先存储在内存虚拟硬盘中, 完成图像显示、网络传输和硬盘存储后删除
+ * - 更改文件上传接口
+ * - 增加磁盘剩余空间监测与磁盘清理
+ *
+ * @date 2017年11月??日
  * - 加入相机重连机制, 需要在与相机操作和访问前查看相机连接状态
  * - 重连机制:
  *   (1) 当相机出错时, 断开与相机连接
@@ -59,6 +69,7 @@ private:
 		MSG_ABORT_EXPOSE,	//< 消息: 完成物理曝光终止过程
 		MSG_FAIL_EXPOSE,	//< 消息: 曝光过程中错误
 		MSG_COMPLETE_WAIT,	//< 消息: 等待线程正常结束
+		MSG_PERIOD_INFO,	//< 消息: 发送周期信息
 		MSG_CCS_END
 	};
 
@@ -202,8 +213,7 @@ private:
 	boost::shared_array<char>				bufrcv_;	//< 与总控服务器之间的网络信息接收缓冲区
 	threadptr	thrdCycle_;	//< 周期线程, 定时检查系统状态, 并发送网络信息
 	threadptr	thrdWait_;	//< 延时等待线程, 等待曝光起始时间到达
-	boost::mutex mtxTcp_;	//< 网络连接互斥锁
-	boost::mutex mtxsys_;	//< 系统信息互斥锁
+
 	ptime tmlastsend_;		//< 最后一次发送相机信息的时标
 	ptime tmlastconnect_;	//< 最后一次尝试连接服务器的时标
 	bool firstimg_;		//< 第一张图像
@@ -241,19 +251,19 @@ protected:
 	 * @brief 处理与总控服务器的连接结果
 	 * @param ec 0: 连接成功; <>0: 连接失败
 	 */
-	void OnConnectGC(const long ec);
+	void OnConnectGC(long ec, long);
 	/*!
 	 * @brief 处理来自总控服务器的网络信息
 	 */
-	void OnReceiveGC();
+	void OnReceiveGC(long, long);
 	/*!
 	 * @brief 总控服务器断开网络连接
 	 */
-	void OnCloseGC();
+	void OnCloseGC(long, long);
 	/*!
 	 * @brief 曝光前检测和准备
 	 */
-	void OnPrepareExpose();
+	void OnPrepareExpose(long, long);
 	/*!
 	 * @brief 曝光进行中
 	 * @param left    剩余曝光时间, 量纲: 微秒
@@ -263,19 +273,23 @@ protected:
 	/*!
 	 * @brief 曝光正常结束
 	 */
-	void OnCompleteExpose();
+	void OnCompleteExpose(long, long);
 	/*!
 	 * @brief 物理上完成终止曝光流程
 	 */
-	void OnAbortExpose();
+	void OnAbortExpose(long, long);
 	/*!
 	 * @brief 曝光过程中错误
 	 */
-	void OnFailExpose();
+	void OnFailExpose(long, long);
 	/*!
 	 * @brief 延时等待线程正常结束
 	 */
-	void OnCompleteWait();
+	void OnCompleteWait(long, long);
+	/*!
+	 * @brief 发送周期信息
+	 */
+	void OnPeriodInfo(long, long);
 
 protected:
 	/*!
