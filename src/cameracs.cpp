@@ -430,7 +430,7 @@ void cameracs::ExposeProcessCB(const double left, const double percent, const in
 //		post_message(MSG_PROCESS_EXPOSE, long(left * 1E6), long(percent * 100));
 		break;
 	case CAMERA_IMGRDY: // 已下载图像
-		post_message(MSG_COMPLETE_EXPOSE);
+		post_message(nfsys_->command == EXPOSE_START ? MSG_COMPLETE_EXPOSE : MSG_ABORT_EXPOSE);
 		break;
 	default:
 		break;
