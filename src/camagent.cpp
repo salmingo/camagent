@@ -30,6 +30,7 @@ int main(int argc, char **argv) {
 	}
 	else {// 常规工作模式
 		param_config param;
+		param.LoadFile(gConfigPath);
 		if (param.bShowImg) system("ds9&");
 
 		boost::asio::io_service ios;
