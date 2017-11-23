@@ -11,7 +11,7 @@
  * (4) 同步NTP时钟
  * (5) 上传FITS文件
  * @date 2017年5月19日
- * - CAMERA_WAIT_FLAT状态可接收object_info, 更新坐标
+ * - CAMCTL_WAIT_FLAT状态可接收object_info, 更新坐标
  * - 改变延迟时间不足时的变更策略
  */
 
@@ -274,7 +274,6 @@ void cameracs::OnCompleteExpose(long, long) {
 }
 
 void cameracs::OnAbortExpose(long, long) {
-	int state = nfsys_->state;
 	if (nfsys_->command == EXPOSE_STOP) {
 		gLog.Write("exposure sequence is aborted");
 		nfsys_->state = CAMCTL_IDLE;
@@ -290,12 +289,13 @@ void cameracs::OnAbortExpose(long, long) {
 		post_message(MSG_PREPARE_EXPOSE);
 	}
 	// 通知服务器
-	if (state != nfsys_->state) SendCameraInfo(nfsys_->state);
+	SendCameraInfo(nfsys_->state);
 }
 
 void cameracs::OnFailExpose(long, long) {
 	gLog.Write("exposure failed", LOG_FAULT, "%s", camera_->GetCameraInfo()->errmsg.c_str());
 	nfsys_->state = CAMCTL_ERROR;
+	SendCameraInfo(nfsys_->state);
 }
 
 void cameracs::OnCompleteWait(long, long) {
@@ -450,7 +450,7 @@ void cameracs::ThreadCycle() {
 		now = microsec_clock::universal_time();
 		dt = now - tmlastsend_;
 		// 检查相机温度
-		if (CAMERA_EXPOSE != nfcam->state) {
+		if (CAMCTL_EXPOSE != nfcam->state) {
 			if (fabs(coolerget - nfcam->coolerget) > 1.0) {
 				coolerget = nfcam->coolerget;
 				gLog.Write("CCD Temperature: %.1f", coolerget);
@@ -708,10 +708,10 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 			break;
 		case EXPOSE_PAUSE:
 		{
-			if (state == CAMERA_EXPOSE || state == CAMCTL_COMPLETE || state == CAMCTL_ABORT || state == CAMCTL_WAIT_TIME) {
+			if (state == CAMCTL_EXPOSE || state == CAMCTL_COMPLETE || state == CAMCTL_ABORT || state == CAMCTL_WAIT_TIME) {
 				gLog.Write("<expose pause> suspend exposure sequence");
 				nfsys_->command = EXPOSE_PAUSE;
-				if (state == CAMERA_EXPOSE) camera_->AbortExpose();
+				if (state == CAMCTL_EXPOSE) camera_->AbortExpose();
 				else if (state == CAMCTL_WAIT_TIME) {// 延时等待切换为等待
 					gLog.Write("exposure sequence is suspended");
 					nfsys_->state = CAMCTL_PAUSE;
