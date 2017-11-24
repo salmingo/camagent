@@ -70,16 +70,19 @@ private:
 		MSG_FAIL_EXPOSE,	//< 消息: 曝光过程中错误
 		MSG_COMPLETE_WAIT,	//< 消息: 等待线程正常结束
 		MSG_PERIOD_INFO,	//< 消息: 发送周期信息
+		MSG_CONNECT_CAMERA,	//< 消息: 连接相机成功
 		MSG_CCS_END
 	};
 
 	struct system_info {// 系统信息
+		bool	connected;	//< 连接标志
 		int		command;	//< 控制指令
 		int		state;		//< 工作状态.
 		int		freedisk;	//< 空闲磁盘空间, 量纲: MB
 
 	public:
 		system_info() {
+			connected = false;
 			command = state = -1;
 			freedisk = -1;
 		}
@@ -213,6 +216,7 @@ private:
 	boost::shared_array<char>				bufrcv_;	//< 与总控服务器之间的网络信息接收缓冲区
 	threadptr	thrdCycle_;	//< 周期线程, 定时检查系统状态, 并发送网络信息
 	threadptr	thrdWait_;	//< 延时等待线程, 等待曝光起始时间到达
+	threadptr	thrdReCam_;	//< 线程, 重连相机
 
 	ptime tmlastsend_;		//< 最后一次发送相机信息的时标
 	ptime tmlastconnect_;	//< 最后一次尝试连接服务器的时标
@@ -290,6 +294,10 @@ protected:
 	 * @brief 发送周期信息
 	 */
 	void OnPeriodInfo(long, long);
+	/*!
+	 * @brief 成功建立与相机连接
+	 */
+	void OnConnectCamera(long, long);
 
 protected:
 	/*!
@@ -342,6 +350,10 @@ protected:
 	 * @param tmobs 曝光起始时间
 	 */
 	void ThreadWait(const boost::posix_time::ptime &tmobs);
+	/*!
+	 * @brief 线程, 尝试重新连接相机
+	 */
+	void ThreadReCamera();
 	/*!
 	 * @brief 从外部中断线程
 	 * @param thrd 线程对象

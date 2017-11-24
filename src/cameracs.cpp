@@ -28,7 +28,7 @@
 #include "GLog.h"
 //#include "CameraAndorCCD.h"
 //#include "CameraFLI.h"
-//#include "CameraApogee.h"
+#include "CameraApogee.h"
 //#include "CameraPI.h"
 #include "CameraGY.h"
 
@@ -74,6 +74,7 @@ bool cameracs::Start() {
 }
 
 void cameracs::Stop() {
+	ExitThread(thrdReCam_);
 	ExitThread(thrdCycle_);
 	ExitThread(thrdWait_);
 	disconnect_gc();
@@ -84,9 +85,9 @@ void cameracs::Stop() {
 }
 
 void cameracs::register_messages() {
-	const cbtype slot1 = boost::bind(&cameracs::OnConnectGC,     this, _1, _2);
-	const cbtype slot2 = boost::bind(&cameracs::OnReceiveGC,     this, _1, _2);
-	const cbtype slot3 = boost::bind(&cameracs::OnCloseGC,       this, _1, _2);
+	const cbtype slot1 = boost::bind(&cameracs::OnConnectGC,      this, _1, _2);
+	const cbtype slot2 = boost::bind(&cameracs::OnReceiveGC,      this, _1, _2);
+	const cbtype slot3 = boost::bind(&cameracs::OnCloseGC,        this, _1, _2);
 	const cbtype slot4 = boost::bind(&cameracs::OnPrepareExpose,  this, _1, _2);
 	const cbtype slot5 = boost::bind(&cameracs::OnProcessExpose,  this, _1, _2);
 	const cbtype slot6 = boost::bind(&cameracs::OnCompleteExpose, this, _1, _2);
@@ -94,6 +95,7 @@ void cameracs::register_messages() {
 	const cbtype slot8 = boost::bind(&cameracs::OnFailExpose,     this, _1, _2);
 	const cbtype slot9 = boost::bind(&cameracs::OnCompleteWait,   this, _1, _2);
 	const cbtype slot10= boost::bind(&cameracs::OnPeriodInfo,     this, _1, _2);
+	const cbtype slot11= boost::bind(&cameracs::OnConnectCamera,  this, _1, _2);
 
 	register_message(MSG_CONNECT_GC,      slot1);
 	register_message(MSG_RECEIVE_GC,      slot2);
@@ -105,6 +107,7 @@ void cameracs::register_messages() {
 	register_message(MSG_FAIL_EXPOSE,     slot8);
 	register_message(MSG_COMPLETE_WAIT,   slot9);
 	register_message(MSG_PERIOD_INFO,     slot10);
+	register_message(MSG_CONNECT_CAMERA,  slot11);
 }
 
 void cameracs::ConnectedGC(const long client, const long ec) {
@@ -296,6 +299,11 @@ void cameracs::OnFailExpose(long, long) {
 	gLog.Write("exposure failed", LOG_FAULT, "%s", camera_->GetCameraInfo()->errmsg.c_str());
 	nfsys_->state = CAMCTL_ERROR;
 	SendCameraInfo(nfsys_->state);
+
+	gLog.Write("camera wrong. will try to disconnect and re-connect camera auto");
+	ExitThread(thrdCycle_);
+	disconnect_camera();
+	thrdReCam_.reset(new boost::thread(boost::bind(&cameracs::ThreadReCamera, this)));
 }
 
 void cameracs::OnCompleteWait(long, long) {
@@ -306,6 +314,21 @@ void cameracs::OnCompleteWait(long, long) {
 
 void cameracs::OnPeriodInfo(long, long) {
 	SendCameraInfo(-1);
+}
+
+void cameracs::OnConnectCamera(long, long) {
+	gLog.Write("SUCCEED: connection width camera again");
+
+	thrdReCam_.reset();
+	nfsys_->state = CAMCTL_IDLE;
+	// 启动周期线程
+	thrdCycle_.reset(new boost::thread(boost::bind(&cameracs::ThreadCycle, this)));
+	// 尝试恢复曝光
+	if (nfsys_->command == EXPOSE_START && !nfobj_->obj_id.empty()) {
+		gLog.Write("auto resume interrupted exposure");
+		resetdelay_ = 0;
+		post_message(MSG_PREPARE_EXPOSE);
+	}
 }
 
 bool cameracs::connect_camera() {
@@ -324,8 +347,8 @@ bool cameracs::connect_camera() {
 		break;
 	case 3:	// Apogee CCD
 	{
-//		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
-//		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
+		boost::shared_ptr<CameraApogee> ccd = boost::make_shared<CameraApogee>();
+		camera_ = boost::static_pointer_cast<CameraBase>(ccd);
 	}
 		break;
 	case 4:	// PI CCD
@@ -361,6 +384,7 @@ bool cameracs::connect_camera() {
 		const ExposeProcess::slot_type& slot = boost::bind(&cameracs::ExposeProcessCB, this, _1, _2, _3);
 		camera_->register_expose(slot);
 	}
+	nfsys_->connected = nfcam->connected;
 	return nfcam->connected;
 }
 
@@ -369,6 +393,7 @@ void cameracs::disconnect_camera() {
 		camera_->Disconnect();
 		camera_.reset();
 	}
+	nfsys_->connected = false;
 }
 
 void cameracs::start_ntp() {
@@ -450,7 +475,7 @@ void cameracs::ThreadCycle() {
 		now = microsec_clock::universal_time();
 		dt = now - tmlastsend_;
 		// 检查相机温度
-		if (CAMCTL_EXPOSE != nfcam->state) {
+		if (CAMERA_EXPOSE != nfcam->state) {
 			if (fabs(coolerget - nfcam->coolerget) > 1.0) {
 				coolerget = nfcam->coolerget;
 				gLog.Write("CCD Temperature: %.1f", coolerget);
@@ -481,6 +506,19 @@ void cameracs::ThreadWait(const ptime &tmobs) {
 	if (val > 0) boost::this_thread::sleep_for(boost::chrono::microseconds(val));
 	// 线程正常结束
 	post_message(MSG_COMPLETE_WAIT);
+}
+
+void cameracs::ThreadReCamera() {
+	boost::chrono::minutes period(1);
+	int trycnt(0);
+
+	while(!nfsys_->connected) {
+		boost::this_thread::sleep_for(period);
+		if (!connect_camera()) ++trycnt;
+		if (trycnt == 5) period = boost::chrono::minutes(2);
+		else if (trycnt == 10) period = boost::chrono::minutes(5);
+	}
+	if (nfsys_->connected) post_message(MSG_CONNECT_CAMERA);
 }
 
 void cameracs::ExitThread(threadptr &thrd) {
@@ -697,8 +735,8 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 				if (state >= CAMCTL_ABORT) {// 暂停态: 直接结束
 					gLog.Write("exposure sequence is aborted");
 					nfsys_->state = CAMCTL_IDLE;
-					ExitThread(thrdWait_);
 					SendCameraInfo(nfsys_->state);
+					ExitThread(thrdWait_);
 				}
 				else if (state == CAMCTL_EXPOSE) {// 通过曝光逻辑调整系统状态
 					camera_->AbortExpose();
@@ -715,8 +753,8 @@ void cameracs::ProcessProtocol(string& proto_type, apbase& proto_body) {
 				else if (state == CAMCTL_WAIT_TIME) {// 延时等待切换为等待
 					gLog.Write("exposure sequence is suspended");
 					nfsys_->state = CAMCTL_PAUSE;
-					ExitThread(thrdWait_);
 					SendCameraInfo(nfsys_->state);
+					ExitThread(thrdWait_);
 				}
 			}
 		}

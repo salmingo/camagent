@@ -359,7 +359,7 @@ const char *CameraGY::UpdateNetwork(const uint32_t addr, const char *vstr) {
 }
 
 void CameraGY::ThreadHB() {
-	boost::chrono::seconds period(2);	// 心跳周期: 2秒
+	boost::chrono::seconds period(5);	// 心跳周期: 5秒
 	int limit = 3; // 容错次数
 
 	while(hbfail_ < limit) {
@@ -374,7 +374,7 @@ void CameraGY::ThreadHB() {
 			++hbfail_;
 		}
 	}
-	if (hbfail_ == limit) exposeproc_(0, 0, (int) CAMERA_ERROR);
+	if (hbfail_ == limit && nfcam_->state == CAMERA_IDLE) exposeproc_(0, 0, (int) CAMERA_ERROR);
 }
 
 void CameraGY::ThreadReadout() {
@@ -428,7 +428,6 @@ void CameraGY::ReceiveDataCB(const long udp, const long len) {
 	uint16_t idFrame = (pack[2] << 8) | pack[3];	// 图像帧编号
 	uint8_t  type    = pack[4]; // 数据包类型
 	uint32_t idPack  = (pack[5] << 16) | (pack[6] << 8) | pack[7]; // 包编号
-
 
 	if (type == ID_LEADER) {// 数据包头: idPack_==0
 		idFrame_ = idFrame;
