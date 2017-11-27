@@ -399,7 +399,9 @@ void CameraGY::ThreadReadout() {
 			now = microsec_clock::universal_time();
 			td = now - nfcam_->tmobs;
 			if ((td.total_seconds() - nfcam_->eduration) > limit_expose) {// 错误: 未收到数据包
-				StopExpose();
+				nfcam_->errmsg = "long time no data respond";
+				state_ = CAMERA_ERROR;
+				imgrdy_.notify_one();	// 中断读出过程
 			}
 			else if (state_ == CAMERA_IMGRDY) {
 				if ((dt = now.time_of_day().total_milliseconds() - tmdata_) < 0) dt += 86400000;
