@@ -269,9 +269,10 @@ void cameracs::OnCompleteExpose(long, long) {
 			SendCameraInfo(nfsys_->state);
 		}
 	}
-	else if (nfsys_->command != EXPOSE_PAUSE) {
-		gLog.Write("exposure sequence is over");
-		nfsys_->state = CAMCTL_IDLE;
+	else {
+		bool paused = nfsys_->command == EXPOSE_PAUSE;
+		gLog.Write("exposure sequence is %s", paused ? "suspend" : "over");
+		nfsys_->state = paused ? CAMCTL_PAUSE : CAMCTL_IDLE;
 		SendCameraInfo(nfsys_->state);
 	}
 }
