@@ -16,9 +16,12 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <string>
 #include <boost/thread.hpp>
+#include <boost/smart_ptr.hpp>
 
 class NTPClient {
+public:
 	typedef struct _ntp_time {
 		unsigned int coarse;
 		unsigned int fine;
@@ -48,6 +51,10 @@ class NTPClient {
 		ntp_time transmit_timestamp;	// T3: 反馈离开服务器时的本地实际
 										// T4: 反馈抵达本机时的时间
 	};
+	/* 声明数据类型 */
+	typedef boost::unique_lock<boost::mutex> mutex_lock; //< 基于boost::mutex的互斥锁
+	typedef boost::shared_ptr<boost::thread> threadptr;  //< 线程指针类型
+	typedef boost::shared_array<char> carray;		//< 字符型数组
 
 public:
 	/*!
@@ -56,26 +63,25 @@ public:
 	 * @param port    NTP服务端口, 默认123
 	 * @param tSyn    修正时钟的最大时钟偏差, 量纲: 毫秒
 	 */
-	NTPClient(const char* hostIP, const int port = 123, const int tSyn = 5);
+	NTPClient(const char* hostIP, const uint16_t port = 123, const int tSync = 5);
 	virtual ~NTPClient();
 
 protected:
 	/*!
 	 * @brief 构建待发送网络信息
 	 */
-	void ConstructPacket();
+	void construct_packet();
 	/*!
 	 * @brief 采集NTP时钟
-	 * @param sock      套接口
 	 * @param addr      地址
 	 * @param ret_time  NTP数据包
 	 * @return
 	 */
-	int GetNTPTime(int sock, struct addrinfo *addr, struct ntp_packet *ret_time);
+	int get_time(struct addrinfo* addr, struct ntp_packet* ret_time);
 	/*!
 	 * @brief 线程主体
 	 */
-	void ThreadBody();
+	void thread_body();
 
 public:
 	/*!
@@ -83,7 +89,12 @@ public:
 	 * @param ip   IPv4地址
 	 * @param port 服务端口
 	 */
-	void SetHost(const char* ip, const int port);
+	void SetHost(const char* ip, const uint16_t port = 123);
+	/*!
+	 * @brief 设置时钟修正阈值
+	 * @param tSync 时钟修正阈值, 量纲: 毫秒
+	 */
+	void SetSyncLimit(const int tSync = 5);
 	/*!
 	 * @brief 同步本机时钟
 	 */
@@ -94,21 +105,25 @@ public:
 	void EnableAutoSynch(bool bEnabled = true);
 
 protected:
-	/* 声明数据类型 */
-	typedef boost::mutex::scoped_lock mtxlock;
 	/* 声明成员变量 */
-	boost::mutex m_mutex;		//< 互斥区
-	boost::thread* m_thread;	//< 线程指针
-	char   m_host[20];		//< NTP服务器的IPv4地址
-	int    m_port;			//< NTP服务器的端口
-	int    m_sock;			//< SOCKET套接字
-	char  *m_packet;		//< 网络交互信息
-	double m_offset;		//< 时钟偏差, 量纲: 秒
-	double m_delay;			//< 网络通信延迟, 量纲: 秒
-	bool   m_valid;			//< 数据有效性
-	int    m_nFail;			//< 时钟偏差检查失败次数
-	double m_tSyn;			//< 修正本地时钟的最大时钟偏差
-	bool   m_autoSync;		//< 是否自动修正时钟偏差
+	boost::mutex mtx_;		//< 互斥区
+	threadptr    thrd_;		//< 线程指针
+	std::string  host_;		//< NTP服务器的IPv4地址
+	uint16_t     port_;		//< NTP服务器的端口
+	int          sock_;		//< SOCKET套接字
+	carray       pack_;		//< 网络交互信息
+	double       offset_;	//< 时钟偏差, 量纲: 秒
+	bool         valid_;		//< 数据有效性
+	int          nfail_;		//< 时钟偏差检查失败次数
+	double       tSync_;		//< 修正本地时钟的最大时钟偏差
+	bool         autoSync_;	//< 是否自动修正时钟偏差
 };
+typedef boost::shared_ptr<NTPClient> NTPPtr; //< NTPclient指针
+/*!
+ * @brief 工厂函数, 生成新的NTPClient指针
+ * @return
+ * 指针创建结果
+ */
+extern NTPPtr make_ntp(const char* hostIP, const uint16_t port, const int tSync);
 
 #endif /* NTPCLIENT_H_ */

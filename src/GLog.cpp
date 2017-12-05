@@ -6,88 +6,84 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <fcntl.h>
+#include <unistd.h>
 #include <stdarg.h>
-#include <string>
-#include "GLog.h"
+#include <boost/filesystem/path.hpp>
+#include <boost/format.hpp>
 #include "globaldef.h"
+#include "GLog.h"
 
-using namespace std;
 using namespace boost::posix_time;
 
 GLog::GLog(FILE *out) {
-	m_day = -1;
-	m_fd  = out;
+	day_ = -1;
+	fd_  = out;
 }
 
 GLog::~GLog() {
-	if (m_fd && m_fd != stdout && m_fd != stderr) fclose(m_fd);
+	if (fd_ && fd_ != stdout && fd_ != stderr) fclose(fd_);
 }
 
-bool GLog::valid_file(ptime *ptime) {
-	if (m_fd == stdout || m_fd == stderr) return true;
-
-	if (m_day != ptime->date().day()) {// 日期变更
-		m_day = ptime->date().day();
-		if (m_fd) {// 关闭已打开的日志文件
-			fprintf(m_fd, "%s continue\n", string(69, '>').c_str());
-			fclose(m_fd);
-			m_fd = NULL;
+bool GLog::valid_file(ptime &t) {
+	if (fd_ == stdout || fd_ == stderr) return true;
+	ptime::date_type date = t.date();
+	if (day_ != date.day()) {// 日期变更
+		day_ = date.day();
+		if (fd_) {// 关闭已打开的日志文件
+			fprintf(fd_, "%s continue\n", string(69, '>').c_str());
+			fclose(fd_);
+			fd_ = NULL;
 		}
 	}
 
-	if (m_fd == NULL) {
-		char pathname[200];
-
+	if (fd_ == NULL) {
 		if (access(gLogDir, F_OK)) mkdir(gLogDir, 0755);	// 创建目录
-		sprintf(pathname, "%s/%s%s.log",
-				gLogDir, gLogPrefix, to_iso_string(ptime->date()).c_str());
-		m_fd = fopen(pathname, "a+");
-		fprintf(m_fd, "%s\n", string(79, '-').c_str());
+		if (!access(gLogDir, W_OK | X_OK)) {
+			boost::filesystem::path path = gLogDir;
+			boost::format fmt("%s%s.log");
+			fmt % gLogPrefix % to_iso_string(date).c_str();
+			path /= fmt.str();
+			fd_ = fopen(path.c_str(), "a+t");
+			fprintf(fd_, "%s\n", string(79, '-').c_str());
+		}
 	}
 
-	return (m_fd != NULL);
+	return (fd_ != NULL);
 }
 
 void GLog::Write(const char* format, ...) {
 	if (format == NULL) return;
 
-	mtxlock lock(m_mutex);
-	ptime t(microsec_clock::local_time());
+	mutex_lock lock(mtx_);
+	ptime t = microsec_clock::local_time();
+	va_list vl;
 
-	if (valid_file(&t)) {
-		// 时间标签
-		fprintf(m_fd, "%s >> ", to_simple_string(t.time_of_day()).c_str());
-		// 日志描述的格式与内容
-		va_list vl;
+	if (valid_file(t)) {
+		fprintf(fd_, "%s >> ", to_simple_string(t.time_of_day()).c_str());
 		va_start(vl, format);
-		vfprintf(m_fd, format, vl);
+		vfprintf(fd_, format, vl);
 		va_end(vl);
-		fprintf(m_fd, "\n");
-		fflush(m_fd);
+		fprintf(fd_, "\n");
+		fflush(fd_);
 	}
 }
 
-void GLog::Write(const char* where, const LOG_TYPE type, const char* format, ...) {
+void GLog::Write(const LOG_TYPE type, const char* where, const char* format, ...) {
 	if (format == NULL) return;
 
-	mtxlock lock(m_mutex);
-	ptime t(microsec_clock::local_time());
+	mutex_lock lock(mtx_);
+	ptime t = microsec_clock::local_time();
+	va_list vl;
 
-	if (valid_file(&t)) {
-		// 时间标签
-		fprintf(m_fd, "%s >> ", to_simple_string(t.time_of_day()).c_str());
-		// 日志类型
-		if (type == LOG_WARN)       fprintf(m_fd, "WARN: ");
-		else if (type == LOG_FAULT) fprintf(m_fd, "ERROR: ");
-		// 事件位置
-		if (where) fprintf(m_fd, "%s, ", where);
-		// 日志描述的格式与内容
-		va_list vl;
+	if (valid_file(t)) {
+		fprintf(fd_, "%s >> ", to_simple_string(t.time_of_day()).c_str());
+		if      (type == LOG_WARN)  fprintf(fd_, "WARN: ");
+		else if (type == LOG_FAULT) fprintf(fd_, "ERROR: ");
+		if (where) fprintf(fd_, "%s, ", where);
 		va_start(vl, format);
-		vfprintf(m_fd, format, vl);
+		vfprintf(fd_, format, vl);
 		va_end(vl);
-		fprintf(m_fd, "\n");
-		fflush(m_fd);
+		fprintf(fd_, "\n");
+		fflush(fd_);
 	}
 }

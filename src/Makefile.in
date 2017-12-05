@@ -93,12 +93,11 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_camagent_OBJECTS = camagent.$(OBJEXT) cameracs.$(OBJEXT) \
-	asciiproto.$(OBJEXT) ATimeSpace.$(OBJEXT) daemon.$(OBJEXT) \
-	GLog.$(OBJEXT) udp_asio.$(OBJEXT) ioservice_keep.$(OBJEXT) \
-	msgque_base.$(OBJEXT) NTPClient.$(OBJEXT) tcp_asio.$(OBJEXT) \
-	FileTransferClient.$(OBJEXT) CameraBase.$(OBJEXT) \
-	CameraGY.$(OBJEXT)
+am_camagent_OBJECTS = daemon.$(OBJEXT) GLog.$(OBJEXT) \
+	IOServiceKeep.$(OBJEXT) MessageQueue.$(OBJEXT) \
+	NTPClient.$(OBJEXT) tcpasio.$(OBJEXT) udpasio.$(OBJEXT) \
+	CameraBase.$(OBJEXT) apgSampleCmn.$(OBJEXT) cameracs.$(OBJEXT) \
+	camagent.$(OBJEXT)
 camagent_OBJECTS = $(am_camagent_OBJECTS)
 am__DEPENDENCIES_1 =
 camagent_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
@@ -263,14 +262,15 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-camagent_SOURCES = camagent.cpp cameracs.cpp asciiproto.cpp ATimeSpace.cpp daemon.cpp GLog.cpp udp_asio.cpp \
-                 ioservice_keep.cpp msgque_base.cpp NTPClient.cpp tcp_asio.cpp FileTransferClient.cpp \
-                 CameraBase.cpp \
-                 CameraGY.cpp
+camagent_SOURCES = daemon.cpp GLog.cpp IOServiceKeep.cpp MessageQueue.cpp NTPClient.cpp tcpasio.cpp udpasio.cpp \
+				  CameraBase.cpp \
+				  apgSampleCmn.cpp \
+				  cameracs.cpp camagent.cpp
 
+AM_CPPFLAGS = -I/usr/local/include/libapogee-3.0
 camagent_LDFLAGS = -L/usr/local/lib
 COMM_LIBS = -lpthread -lcurl -lm -lrt -lcfitsio -lxpa
-BOOST_LIBS = -lboost_system-mt -lboost_thread-mt -lboost_date_time-mt
+BOOST_LIBS = -lboost_system-mt -lboost_thread-mt -lboost_date_time-mt -lboost_filesystem-mt
 camagent_LDADD = ${COMM_LIBS} ${BOOST_LIBS}
 all: all-am
 
@@ -359,20 +359,17 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ATimeSpace.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraBase.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraGY.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/FileTransferClient.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GLog.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/IOServiceKeep.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/MessageQueue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/NTPClient.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/asciiproto.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/apgSampleCmn.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/camagent.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cameracs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemon.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ioservice_keep.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/msgque_base.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tcp_asio.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/udp_asio.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tcpasio.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/udpasio.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

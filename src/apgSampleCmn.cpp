@@ -4,7 +4,6 @@
 #include <fstream>
 #include <stdexcept>
 
-
 ///////////////////////////
 // MAKE	  TOKENS
 std::vector<std::string> apgSampleCmn::MakeTokens(const std::string &str, const std::string &separator)
@@ -29,7 +28,6 @@ std::vector<std::string> apgSampleCmn::MakeTokens(const std::string &str, const 
 std::string apgSampleCmn::GetItemFromFindStr( const std::string & msg,
 				const std::string & item )
 {
-
 	//search the single device input string for the requested item
     std::vector<std::string> params =  apgSampleCmn::MakeTokens( msg, "," );
 	std::vector<std::string>::iterator iter;
@@ -54,7 +52,6 @@ std::string apgSampleCmn::GetUsbAddress( const std::string & msg )
 {
     return apgSampleCmn::GetItemFromFindStr( msg, "address=" );
 }
-
 
 ////////////////////////////
 //	GET		ETHERNET  ADDRESS
@@ -153,36 +150,30 @@ void apgSampleCmn::checkStatus( const Apg::Status status )
 			std::runtime_error except( errMsg );
 			throw except;
 		}
-		break;
-	
+			break;
 		case Apg::Status_DataError:
 		{
 			std::string errMsg("Status_DataError");
 			std::runtime_error except( errMsg );
 			throw except;
 		}
-		break;
-	
+			break;
 		case Apg::Status_PatternError:
 		{
 			std::string errMsg("Status_PatternError");
 			std::runtime_error except( errMsg );
 			throw except;
 		}
-		break;
-	
+			break;
 		case Apg::Status_Idle:
 		{
 			std::string errMsg("Status_Idle");
 			std::runtime_error except( errMsg );
 			throw except;
 		}
-		break;
-	
+			break;
 		default:
 			//no op on purpose
-		break;
+			break;
 	}
-	
 }
-

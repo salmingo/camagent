@@ -5,21 +5,21 @@
  * @author Xiaomeng Lu
   */
 
-#include "ioservice_keep.h"
 #include <boost/make_shared.hpp>
 #include <boost/bind.hpp>
+#include "IOServiceKeep.h"
 
-ioservice_keep::ioservice_keep() {
+IOServiceKeep::IOServiceKeep() {
 	work_.reset(new work(ios_));
-	thread_.reset(new thread(boost::bind(&io_service::run, &ios_)));
+	thrd_keep_.reset(new boost::thread(boost::bind(&io_service::run, &ios_)));
 }
 
-ioservice_keep::~ioservice_keep() {
+IOServiceKeep::~IOServiceKeep() {
 	work_.reset();
 	ios_.stop();
-	thread_->join();
+	thrd_keep_->join();
 }
 
-io_service& ioservice_keep::get_service() {
+io_service& IOServiceKeep::get_service() {
 	return ios_;
 }

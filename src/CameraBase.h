@@ -1,12 +1,7 @@
 /*
- * @file CameraBase.h 相机基类声明文件, 各型号相机共同访问控制接口
- * @date 2017年4月9日
- * @version 0.2
- * @author Xiaomeng Lu
- * @note
- * 功能列表:
- * @li 实现相机工作逻辑流程
- * @li 声明真实相机需实现的纯虚函数
+ * @file CameraBase.h 声明文件, 通用相机控制接口
+ * @version 0.1
+ * @date 2017-11-17
  */
 
 #ifndef CAMERABASE_H_
@@ -14,188 +9,270 @@
 
 #include <string>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/interprocess/ipc/message_queue.hpp>
+#include <boost/format.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/thread.hpp>
-#include <boost/format.hpp>
 #include <boost/signals2.hpp>
 
-using namespace boost::posix_time;
+using std::string;
+using boost::posix_time::ptime;
 
+//////////////////////////////////////////////////////////////////////////////
 enum CAMERA_STATUS {// 相机工作状态
-	CAMERA_ERROR,	// 错误
-	CAMERA_IDLE,	// 空闲
-	CAMERA_EXPOSE,	// 曝光过程中
-	CAMERA_IMGRDY,	// 已完成曝光, 可以读出数据进入内存
-	CAMERA_LAST		// 占位
+	CAMSTAT_ERROR,		// 错误
+	CAMSTAT_IDLE,		// 空闲
+	CAMSTAT_EXPOSE,		// 曝光过程中
+	CAMSTAT_READOUT,		// 读出过程中
+	CAMSTAT_IMGRDY		// 已完成曝光, 可以读出数据进入内存
 };
 
-enum CAMCTL_STATUS {// 相机控制状态
-	CAMCTL_ERROR,		// 错误
-	CAMCTL_IDLE,		// 空闲
-	CAMCTL_EXPOSE,		// 曝光过程中
-	CAMCTL_COMPLETE,	// 已完成曝光
-	CAMCTL_ABORT,		// 已中止曝光
-	CAMCTL_PAUSE,		// 已暂停曝光
-	CAMCTL_WAIT_TIME,	// 等待曝光流传起始时间到达
-	CAMCTL_WAIT_FLAT,	// 平场间等待--等待转台重新指向
-	CAMCTL_LAST			// 占位
+enum CAMERA_MODE {// 相机工作模式
+	CAMMOD_NORMAL,		// 常规模式
+	CAMMOD_CALIBRATE		// 定标模式. 用于校准偏置电压
 };
-
-struct ROI {// ROI区, XY坐标起始点为(1,1)
-	int xstart, ystart;		// ROI区左上角在全幅中的位置
-	int width, height;		// ROI区在全副中的宽度和高度
-	int xbin, ybin;			// ROI区X、Y方向合并因子
-
-public:
-	int get_width() {// 合并后图像宽度
-		return width / xbin;
-	}
-
-	int get_height() {// 合并后图像高度
-		return height / ybin;
-	}
-
-	void reset(int w, int h) {// 重置ROI区
-		xstart = ystart = 1;
-		xbin = ybin = 1;
-		width  = w;
-		height = h;
-	}
-};
-
-struct devcam_info {// 相机设备基本信息
-	std::string errmsg;		//< 错误提示
-	std::string model;		//< 相机型号
-	bool connected;			//< 与相机连接标志
-	bool cooling;			//< 制冷启动标志
-//	bool exposing;			//< 曝光过程标志
-	CAMERA_STATUS state;	//< 工作状态
-	int errorno;			//< 错误代码
-	int wsensor;			//< 图像宽度, 量纲: 像素
-	int hsensor;			//< 图像高度, 量纲: 像素
-	uint32_t readport;		//< 读出端口档位
-	uint32_t readrate;		//< 读出速度档位
-	uint32_t gain;			//< 增益档位
-	double coolerset;		//< 制冷温度
-	double coolerget;		//< 芯片温度
-	ROI roi;				//< 有效ROI区
-	double eduration;		//< 曝光时间, 量纲: 秒
-	std::string dateobs;	//< 曝光起始时间对应的日期, 格式: CCYY-MM-DD
-	std::string timeobs;	//< 曝光起始时间对应的时间, 格式: hh:mm:ss.ssssss
-	std::string timeend;	//< 曝光结束时间对应的时间, 格式: hh:mm:ss.ssssss
-	ptime tmobs;			//< 曝光起始时间, 用于监测曝光进度
-	double jd;				//< 曝光起始时间对应的儒略日
-	std::string utcdate;	//< 曝光起始日期, 用于生成文件存储目录名, 格式: YYMMDD
-	std::string utctime;	//< 曝光起始时间, 用于生成文件名, 格式: YYMMDDThhmmssss
-	bool   ampm;			//< true: A.M.; false: P.M.
-	boost::shared_array<uint8_t> data;	//< 图像数据存储区
-
-public:
-	virtual ~devcam_info() {
-		data.reset();
-	}
-
-	void begin_expose(double duration) {
-		tmobs = microsec_clock::universal_time();
-		eduration = duration;
-		state     = CAMERA_EXPOSE;
-	}
-
-	void end_expose() {
-		ptime now = microsec_clock::universal_time();
-		timeend = to_simple_string(now.time_of_day());
-	}
-
-	/*!
-	 * @brief 构建用于目录名和文件名的字符串
-	 */
-	void format_utc() {// 构建字符串带来的延时约为0.02毫秒
-		ptime::date_type date = tmobs.date();
-		boost::format fmtdate = boost::format("%02d%02d%02d")
-				% (date.year() - 2000)
-				% (date.month().as_number())
-				% (date.day());
-		utcdate = fmtdate.str();
-		dateobs = to_iso_extended_string(date);
-
-		ptime::time_duration_type time = tmobs.time_of_day();
-		boost::format fmttime = boost::format("%sT%02d%02d%04d")
-				% utcdate.c_str()
-				% (time.hours())
-				% (time.minutes())
-				% (time.seconds() * 100 + time.fractional_seconds() / 10000);
-		utctime = fmttime.str();
-		timeobs = to_simple_string(time);
-
-		double fd = time.total_microseconds() * 1E-6 / 86400.0;
-		jd = date.julian_day() + fd - 0.5;
-	}
-
-	void check_ampm() {
-		ptime now(microsec_clock::local_time());
-		ampm = now.time_of_day().hours() < 12;
-	}
-
-	/*!
-	 * @brief 检查曝光进度
-	 * @param left    剩余时间, 量纲: 秒
-	 * @param percent 曝光进度, 百分比
-	 * @return
-	 * 曝光未完成返回true, 否则返回false
-	 */
-	bool check_expose(double& left, double& percent) {
-		ptime now(microsec_clock::universal_time());
-		boost::posix_time::time_duration elps = now - tmobs;
-		double dt = elps.total_microseconds() * 1E-6;
-		if ((left = eduration - dt) < 0.0 || eduration < 1E-6) {
-			left = 0.0;
-			percent = 100.000001;
-		}
-		else percent = dt * 100.000001 / eduration;
-		return percent <= 100.0;
-	}
-};
-/*!
- * @brief 声明曝光进度回调函数
- * @param <1> 曝光剩余时间, 量纲: 秒
- * @param <2> 曝光进度, 量纲: 百分比
- * @param <3> 图像数据状态, CAMERA_STATUS
- */
-typedef boost::signals2::signal<void (const double, const double, const int)> ExposeProcess;
 
 class CameraBase {
 public:
 	CameraBase();
 	virtual ~CameraBase();
 
-protected:
-	/* 声明数据类型 */
-	typedef boost::shared_ptr<boost::thread> threadptr;
+public:
+	/* 数据结构 */
+	typedef boost::shared_array<uint8_t> ucharray;	//< 无符号字节型数组
 	typedef boost::unique_lock<boost::mutex> mutex_lock;
+	typedef boost::shared_ptr<boost::thread> threadptr;
 
-	/* 声明成员变量 */
-	boost::shared_ptr<devcam_info> nfcam_;	//< 相机基本信息
-	boost::condition_variable condexp_;		//< 通知曝光开始
-	ExposeProcess exposeproc_;				//< 曝光进度回调函数
-	threadptr thrdIdle_;	//< 线程: 空闲时监测温度
-	threadptr thrdExpose_;	//< 线程: 监测曝光进度和结果
+	struct ROI {// ROI区, XY坐标起始点为(1,1)
+		int wfull, hfull;	//< 全帧尺寸, 量纲: 像素
+		int xstart, ystart;	// ROI区左上角在全幅中的位置
+		int width, height;	// ROI区在全副中的宽度和高度
+		int xbin, ybin;		// ROI区X、Y方向合并因子
+
+	public:
+		ROI() {
+			wfull = hfull = -1;
+			xstart = ystart = 1;
+			width = height = -1;
+			xbin = ybin = 1;
+		}
+
+		/*!
+		 * @brief 设置探测器尺寸
+		 * @param w 宽度
+		 * @param h 高度
+		 */
+		void set_sensor(int w, int h) {
+			wfull = width = w;
+			hfull = height = h;
+		}
+
+		/*!
+		 * @brief ROI区合并后像素数
+		 * @param w 宽度
+		 * @param h 高度
+		 * @return
+		 * 总像素数
+		 */
+		int get_dimension(int &w, int &h) {
+			w = width / xbin;
+			h = height / ybin;
+			return (w * h);
+		}
+
+		/*!
+		 * @brief 查看ROI区设置
+		 * @param xs X轴起始位置
+		 * @param ys Y轴起始位置
+		 * @param w  宽度
+		 * @param h  高度
+		 * @param xb X轴合并因子
+		 * @param yb Y轴合并因子
+		 */
+		void get_roi(int &xs, int &ys, int &w, int &h, int &xb, int &yb) {
+			xs = xstart;
+			ys = ystart;
+			w = width;
+			h = height;
+			xb = xbin;
+			yb = ybin;
+		}
+
+		void reset() {// 重置ROI区
+			xstart = ystart = 1;
+			xbin = ybin = 1;
+			width = wfull, height = hfull;
+		}
+
+		/*!
+		 * @brief 设置ROI区
+		 * @param xs
+		 * @param ys
+		 * @param w
+		 * @param h
+		 * @param xb
+		 * @param yb
+		 */
+		void set_roi(int xs, int ys, int w, int h, int xb = 1, int yb = 1) {
+			int res;
+			if (w <= 0 || w > wfull) w = wfull;
+			if (xb < 1 || xb > w / 2) xb = 1;
+			if ((res = w % xb)) w = w > res ? w - res : w + xb - res;
+			if ((res = xs + w - wfull) > 1) xs -= (res - 1);
+			xstart = xs, width = w, xbin = xb;
+
+			if (h <= 0 || h > hfull) h = hfull;
+			if (yb < 1 || yb > h / 2) yb = 1;
+			if ((res = h % yb)) h = h > res ? h - res : h + yb - res;
+			if ((res = ys + h - hfull) > 1) ys -= (res - 1);
+			ystart = ys, height = h, ybin = yb;
+		}
+	};
+
+	struct Information {// 相机工作参数
+		string	model;		//< 型号
+		int		wsensor;		//< 探测器宽度, 像素
+		int		hsensor;		//< 探测器高度, 像素
+		uint32_t		readport;	//< 读出端口档位
+		uint32_t		readrate;	//< 读出速度档位
+		uint32_t		gain;		//< 增益档位
+		double coolset;		//< 制冷温度
+
+		bool		connected;	//< 连接标志
+		int		mode;		//< 工作模式
+		int		state;		//< 工作状态. CAMERA_STATUS枚举值
+		int		errcode;		//< 错误代码. 此时state == CAMERA_ERROR ?
+		string	errmsg;		//< 错误描述
+		double	coolget;		//< 芯片温度
+		ROI		roi;			//< 感兴趣区
+		ucharray data;		//< 图像数据存储区
+
+		bool		aborted;		//< 抛弃当前积分数据
+		double	expdur;		//< 积分时间, 量纲: 秒
+		ptime	tmobs;		//< 曝光起始时间, 用于记录和监测曝光进度
+		ptime	tmend;		//< 曝光结束时间
+		double	jd;			//< 曝光起始时间对应儒略日
+
+		string	datestr;		//< 曝光起始日期, 仅日期信息, 格式: YYMMDD
+		string	timestr;		//< 缩略曝光起始时间, 格式: YYMMDDThhmmssss
+
+	public:
+		/*!
+		 * @brief 相机连接后初始化
+		 */
+		void init() {
+			int w, h, n;
+			roi.set_sensor(wsensor, hsensor);
+			n = (roi.get_dimension(w, h) * 2 + 15) & ~15;
+			data.reset(new uint8_t[n]);
+			connected = true;
+			mode  = CAMMOD_NORMAL;
+			state = CAMSTAT_IDLE;
+			errcode = 0;
+		}
+
+		/*!
+		 * @brief 相机断开连接后取消初始化
+		 */
+		void uninit() {
+			connected = false;
+		}
+
+		/*!
+		 * @brief 记录曝光起始状态
+		 * @param t 曝光时间
+		 */
+		void begin_expose(double t) {
+			tmobs = boost::posix_time::microsec_clock::universal_time();
+			expdur = t;
+			aborted = false;
+		}
+
+		/*!
+		 * @brief 由曝光起始时间构建相关时间信息
+		 */
+		void format_tmobs() {
+			ptime::date_type date;
+			ptime::time_duration_type tdt;
+			boost::format fmtdate("%02d%02d%02d");
+			boost::format fmttime("%sT%02d%02d%04d");
+
+			date = tmobs.date();
+			tdt = tmobs.time_of_day();
+			fmtdate % (date.year() - 2000) % date.month() % date.day();
+			datestr = fmtdate.str();
+			fmttime % datestr.c_str() % tdt.hours() % tdt.minutes()
+					% (tdt.seconds() + tdt.fractional_seconds() / 10000);
+			timestr = fmttime.str();
+			jd = date.julian_day() + tdt.fractional_seconds() * 1E-6 / 86400.0 - 0.5;
+		}
+
+		/*!
+		 * @brief 记录曝光结束状态
+		 */
+		void end_expose() {
+			tmend = boost::posix_time::microsec_clock::universal_time();
+		}
+
+		/*!
+		 * @brief 检查曝光进度
+		 * @param left    剩余积分时间, 量纲: 秒
+		 * @param percent 曝光进度, 百分比
+		 * @return
+		 * 曝光未完成返回true, 否则返回false
+		 */
+		void check_expose(double &left, double &percent) {
+			namespace pt = boost::posix_time;
+			pt::time_duration td = pt::microsec_clock::universal_time() - tmobs;
+
+			double dt = td.total_microseconds() * 1E-6;
+			if ((left = expdur - dt) <= 0.0) {
+				left = 0.0;
+				percent = 100.000001;
+			}
+			else percent = dt * 100.000001 / expdur;
+		}
+
+		/*!
+		 * @brief 上下午判断
+		 * @return
+		 * true: 上午; false: 下午
+		 */
+		bool ampm() {
+			ptime now = boost::posix_time::second_clock::local_time();
+			return now.time_of_day().hours() < 12;
+		}
+	};
+	typedef boost::shared_ptr<Information> InfoPtr;
+	/*!
+	 * @brief 声明曝光进度回调函数
+	 * @param _1 相机工作状态
+	 * @param _2 曝光进度剩余时间
+	 * @param _3 曝光进度, 量纲: 百分比
+	 */
+	typedef boost::signals2::signal<void (int, double, double)> ExposeProcess;
+	typedef ExposeProcess::slot_type ExpProcSlot;
+
+protected:
+	/* 成员变量 */
+	InfoPtr nfcam_;	//< 相机工作参数
+	threadptr thrdCycle_;	//< 线程句柄, 执行周期任务
+	threadptr thrdExpose_;	//< 线程句柄, 监测曝光过程
+	ExposeProcess cbexp_;	//< 曝光进度回调函数
+	boost::condition_variable cvexp_;	//< 条件变量, 开始曝光
 
 public:
+	/* 接口 */
+	/*!
+	 * @brief 查看相机工作状态
+	 * @return
+	 * 工作状态
+	 */
+	InfoPtr GetInformation() { return nfcam_; }
 	/*!
 	 * @brief 注册曝光进度回调函数
-	 * @param slot 插槽函数
+	 * @param slot 函数插槽
 	 */
-	void register_expose(const ExposeProcess::slot_type& slot);
-
-public:
-	boost::shared_ptr<devcam_info> GetCameraInfo();
-	/*!
-	 * @brief 相机连接标志
-	 * @return
-	 * 是否已经建立与相机连接标志
-	 */
-	bool IsConnected();
+	void RegisterExposeProcess(const ExpProcSlot &slot);
 	/*!
 	 * @brief 尝试连接相机
 	 * @return
@@ -203,15 +280,32 @@ public:
 	 */
 	bool Connect();
 	/*!
-	 * @brief 断开与相机的连接
+	 * @brief 断开与相机之间的连接
 	 */
 	void Disconnect();
 	/*!
-	 * @brief 设置制冷器工作模式及制冷温度
-	 * @param coolerset  期望温度, 量纲: 摄氏度
-	 * @param onoff      制冷器开关
+	 * @brief 检查相机连接状态
+	 * @return
 	 */
-	void SetCooler(double coolerset = -20.0, bool onoff = false);
+	bool IsConnected() { return nfcam_->connected; }
+	/*!
+	 * @brief 尝试启动曝光流程
+	 * @param duration  曝光周期, 量纲: 秒
+	 * @param light     是否需要外界光源
+	 * @return
+	 * 曝光启动结果
+	 */
+	bool Expose(double duration, bool light = true);
+	/*!
+	 * @brief 中止当前曝光过程
+	 */
+	void AbortExpose();
+	/*!
+	 * @brief 设置制冷温度与制冷模式
+	 * @param coolset 制冷温度
+	 * @param onoff   是否启动制冷. true: 启动; false: 停止
+	 */
+	void SetCooler(double coolset, bool onoff = true);
 	/*!
 	 * @brief 设置读出端口
 	 * @param index 读出端口档位
@@ -229,154 +323,127 @@ public:
 	void SetGain(uint32_t index);
 	/*!
 	 * @brief 设置ROI区域
-	 * @param xbin   X轴合并因子
-	 * @param ybin   Y轴合并因子
 	 * @param xstart X轴起始位置
 	 * @param ystart Y轴起始位置
 	 * @param width  宽度
 	 * @param height 高度
+	 * @param xbin   X轴合并因子
+	 * @param ybin   Y轴合并因子
 	 */
-	void SetROI(int xbin = 1, int ybin = 1, int xstart = 1, int ystart = 1, int width = -1, int height = -1);
+	void SetROI(int xstart = 1, int ystart = 1, int width = -1, int height = -1, int xbin = 1, int ybin = 1);
 	/*!
 	 * @brief 设置本底基准值
 	 * @param offset 基准值
 	 */
 	void SetADCOffset(uint16_t offset);
 	/*!
-	 * @brief 尝试启动曝光流程
-	 * @param duration  曝光周期, 量纲: 秒
-	 * @param light     是否需要外界光源
-	 * @return
-	 * 曝光启动结果
+	 * @brief 设置网络参数
+	 * @param ip      IP地址
+	 * @param mask    子网掩码
+	 * @param gateway 网关
 	 */
-	bool Expose(double duration, bool light = true);
-	/*!
-	 * @brief 中止当前曝光过程
-	 */
-	void AbortExpose();
+	virtual void SetNetwork(const char *ip, const char *mask, const char *gateway) = 0;
 
 protected:
+	/* 功能 */
 	/*!
-	 * @brief 空闲线程, 监测相机温度
-	 */
-	void ThreadIdle();
-	/*!
-	 * @brief 曝光线程, 监测曝光进度和结果
-	 */
-	void ThreadExpose();
-	/*!
-	 * @brief 统一线程结束操作
-	 * @param thrd 线程接口
-	 */
-	void ExitThread(threadptr &thrd);
-
-public:
-	/* 虚函数, 继承类实现 */
-	/*!
-	 * @brief 更改相机IP地址
-	 * @param ip 新的IP地址
-	 * @return
-	 * 更改后IP地址
-	 */
-	virtual const char *SetIP(const char *ip);
-	/*!
-	 * @brief 更改相机子网掩码
-	 * @param mask 新的子网掩码
-	 * @return
-	 * 更改后子网掩码
-	 */
-	virtual const char *SetNetmask(const char *mask);
-	/*!
-	 * @brief 更改相机网关
-	 * @param gateway 新的网关
-	 * @return
-	 * 更改后网关
-	 */
-	virtual const char *SetGateway(const char *gateway);
-
-protected:
-	/* 纯虚函数, 继承类实现 */
-	/*!
-	 * @brief 继承类实现与相机的真正连接
+	 * @brief 执行相机连接操作
 	 * @return
 	 * 连接结果
 	 */
-	virtual bool OpenCamera() = 0;
+	virtual bool connect() = 0;
 	/*!
-	 * @brief 继承类实现真正与相机断开连接
+	 * @brief 执行相机断开操作
 	 */
-	virtual void CloseCamera() = 0;
+	virtual void disconnect() = 0;
 	/*!
-	 * @brief 设置制冷器工作模式及制冷温度
-	 * @param coolerset  期望温度, 量纲: 摄氏度
-	 * @param onoff      制冷器开关
+	 * @brief 启动相机曝光流程
+	 * @param duration 积分时间, 量纲: 秒
+	 * @param light    快门控制模式. true: 自动或常开; false: 常关
+	 * @return
+	 * 曝光流程启动结果
 	 */
-	virtual void CoolerOnOff(double& coolerset, bool& onoff) = 0;
+	virtual bool start_expose(double duration, bool light) = 0;
+	/*!
+	 * @brief 中止曝光流程
+	 */
+	virtual void stop_expose() = 0;
+	/*!
+	 * @brief 检查相机工作状态
+	 * @return
+	 * 相机工作状态
+	 */
+	virtual int check_state() = 0;
+	/*!
+	 * @brief 从控制器读出图像数据进入内存
+	 * @return
+	 * 相机工作状态
+	 */
+	virtual int readout_image() = 0;
+	/*!
+	 * @brief 采集探测器温度
+	 * @return
+	 * 探测器温度
+	 */
+	virtual double sensor_temperature() = 0;
+	/*!
+	 * @brief 执行相机制冷操作
+	 * @param coolset 制冷温度
+	 * @param onoff   制冷模式
+	 */
+	virtual void update_cooler(double &coolset, bool onoff) = 0;
 	/*!
 	 * @brief 设置读出端口
-	 * @param index 读出端口档位
+	 * @param index 档位
+	 * @return
+	 * 改变后档位
 	 */
-	virtual void UpdateReadPort(uint32_t& index) = 0;
+	virtual uint32_t update_readport(uint32_t index) = 0;
 	/*!
 	 * @brief 设置读出速度
-	 * @param index 读出速度档位
+	 * @param index 档位
+	 * @return
+	 * 改变后档位
 	 */
-	virtual void UpdateReadRate(uint32_t& index) = 0;
+	virtual uint32_t update_readrate(uint32_t index) = 0;
 	/*!
 	 * @brief 设置增益
-	 * @param index 增益档位
+	 * @param index 档位
+	 * @return
+	 * 改变后档位
 	 */
-	virtual void UpdateGain(uint32_t& index) = 0;
+	virtual uint32_t update_gain(uint32_t index) = 0;
 	/*!
-	 * @brief 更新ROI区域
-	 * @param xbin   X轴合并因子
-	 * @param ybin   Y轴合并因子
+	 * @brief 设置ROI区域
 	 * @param xstart X轴起始位置
 	 * @param ystart Y轴起始位置
 	 * @param width  宽度
 	 * @param height 高度
+	 * @param xbin   X轴合并因子
+	 * @param ybin   Y轴合并因子
 	 */
-	virtual void UpdateROI(int& xbin, int& ybin, int& xstart, int& ystart, int& width, int& height) = 0;
+	virtual void update_roi(int &xstart, int &ystart, int &width, int &height, int &xbin, int &ybin) = 0;
 	/*!
-	 * @brief 自动调整偏置电压, 使得本底值尽可能接近offset
-	 * @param offset 本底平均期望值
+	 * @brief 设置偏置电压
+	 * @param index 档位
 	 */
-	virtual void UpdateADCOffset(uint16_t offset) = 0;
+	virtual void update_adcoffset(uint16_t offset) = 0;
+
+protected:
+	/* 线程 */
 	/*!
-	 * @brief 查看相机芯片温度
-	 * @return
-	 * 相机芯片温度, 量纲: 摄氏度
+	 * @brief 周期线程, 监测温度等
 	 */
-	virtual double SensorTemperature() = 0;
+	void thread_cycle();
 	/*!
-	 * @brief 继承类实现启动真正曝光流程
-	 * @param duration 曝光周期, 量纲: 秒
-	 * @param light    是否需要外界光源
-	 * @return
-	 * 曝光启动结果
+	 * @brief 线程, 监测曝光过程
 	 */
-	virtual bool StartExpose(double duration, bool light) = 0;
+	void thread_expose();
 	/*!
-	 * @brief 继承类实现真正中止当前曝光过程
+	 * @brief 中断线程
+	 * @param thrd 线程句柄
 	 */
-	virtual void StopExpose() = 0;
-	/*!
-	 * @brief 相机工作状态
-	 * @return
-	 * 工作状态
-	 */
-	virtual CAMERA_STATUS CameraState() = 0;
-	/*!
-	 * @brief 继承类实现真正数据读出操作
-	 * @return
-	 * 工作状态
-	 * @note
-	 * 返回值对应DownloadImage的结果, 选项为:
-	 * CAMERA_IMGRDY: 读出成功
-	 * CAMERA_IDLE:   读出失败, 源于中止曝光
-	 * CAMERA_ERROR:  相机错误
-	 */
-	virtual CAMERA_STATUS DownloadImage() = 0;
+	void interrupt_thread(threadptr &thrd);
 };
 
 #endif /* CAMERABASE_H_ */

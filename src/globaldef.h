@@ -8,7 +8,8 @@
 // 软件名称、版本与版权
 #define DAEMON_NAME			"camagent"
 //#define DAEMON_VERSION		"v0.6 @ Jun, 2017"
-#define DAEMON_VERSION		"v0.7 @ Nov, 2017"
+//#define DAEMON_VERSION		"v0.7 @ Nov, 2017"
+#define DAEMON_VERSION		"v0.8 @ Dec, 2017"
 #define DAEMON_AUTHORITY	"© SVOM Group"
 
 // 日志文件路径与文件名前缀
