@@ -33,15 +33,9 @@ bool cameracs::Start() {
 	string name = "msgque_";
 	name += DAEMON_NAME;
 	register_messages();
-	if (!MessageQueue::Start(name.c_str())) {
-		_gLog.Write(LOG_FAULT, NULL, "Fail to create message queue <%s>", name.c_str());
-		return false;
-	}
+	if (!MessageQueue::Start(name.c_str())) return false;
 	/* 连接相机 */
-	if (!connect_camera()) {
-		_gLog.Write(LOG_FAULT, NULL, "Fail to connect camera");
-		return false;
-	}
+	if (!connect_camera()) return false;
 
 	/* 启动其它服务 */
 	start_ntp();
@@ -128,7 +122,25 @@ void cameracs::connect_server() {
  * @note 尝试连接相机
  */
 bool cameracs::connect_camera() {
-	return false;
+	switch(param_->camType) {
+	case 1:
+		break;
+	case 2:
+		break;
+	case 3:
+		break;
+	case 4:
+		break;
+	case 5:
+		break;
+	default:
+		break;
+	}
+
+	const CameraBase::ExpProcSlot &slot = boost::bind(&cameracs::expose_process, this, _1, _2, _3);
+	if (camPtr_.unique()) camPtr_->RegisterExposeProcess(slot);
+
+	return (camPtr_.unique() && camPtr_->IsConnected());
 }
 
 /*
