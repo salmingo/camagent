@@ -18,8 +18,10 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/foreach.hpp>
+#include <boost/format.hpp>
 
 using std::string;
+using std::vector;
 
 struct param_config {// 软件配置参数
 	// 观测系统标志
@@ -59,6 +61,10 @@ struct param_config {// 软件配置参数
 	string	pathLocal;	//< FITS文件存储根目录
 	bool	bAutoFree;	//< 自动清理磁盘空间
 	int		minDiskFree;//< 最小磁盘可用空间, 量纲: GB
+	// 滤光片
+	bool	bFilter;	//< 启用滤光片
+	int		nFilter;	//< 滤光片插槽数量
+	vector<string> nameFilter;	//< 各槽位滤光片名称
 	// 显示图像参数(ds9)
 	bool	bShowImg;	//< 是否实时显示图像
 
@@ -96,48 +102,65 @@ public:
 
 		// ROI
 		ptree &node3 = pt.add("RegionOfInterest", "");
-		node3.add("StartX", xstart = 1);
-		node3.add("StartY", ystart = 1);
-		node3.add("Width",  wroi   = -1);
-		node3.add("Height", hroi   = -1);
-		node3.add("BinX",   xbin   = 1);
-		node3.add("BinY",   ybin   = 1);
+		node3.add("Start.<xmlattr>.X", xstart = 1);
+		node3.add("Start.<xmlattr>.Y", ystart = 1);
+		node3.add("Dimension.<xmlattr>.Width",  wroi   = -1);
+		node3.add("Dimension.<xmlattr>.Height", hroi   = -1);
+		node3.add("Bin.<xmlattr>.X",   xbin   = 1);
+		node3.add("Bin.<xmlattr>.Y",   ybin   = 1);
 
 		// 平场阈值
 		ptree &node4 = pt.add("AutoFlat", "");
-		node4.add("LowerThreshold",  tLow    = 15000.0);
-		node4.add("HigherThreshold", tHigh   = 40000.0);
-		node4.add("ExpectThreshold", tExpect = 30000.0);
-		node4.add("MinimumExptime",  edMin   =  2.0);
-		node4.add("MaximumExptime",  edMax   = 15.0);
+		node4.add("Threshold.<xmlattr>.Low",    tLow    = 15000.0);
+		node4.add("Threshold.<xmlattr>.High",   tHigh   = 40000.0);
+		node4.add("Threshold.<xmlattr>.Expect", tExpect = 30000.0);
+		node4.add("Exptime.<xmlattr>.Min",      edMin   =  2.0);
+		node4.add("Exptime.<xmlattr>.Max",      edMax   = 15.0);
 
 		// 总控服务器
-		ptree &node5 = pt.add("GeneralControlServer", "");
-		node5.add("IP",   hostGC = "172.28.1.11");
-		node5.add("Port", portGC = 4013);
+		pt.add("GeneralControlServer.<xmlattr>.IP",   hostGC = "172.28.1.11");
+		pt.add("GeneralControlServer.<xmlattr>.Port", portGC = 4013);
 
 		// NTP服务器
-		ptree &node6 = pt.add("NTPServer", "");
-		node6.add("Enable",                 bNTP    = true);
-		node6.add("IP",                     hostNTP = "172.28.1.3");
-		node6.add("MaximumClockDifference", maxClockDiff = 5);
+		pt.add("NTPServer.<xmlattr>.Enable",       bNTP    = true);
+		pt.add("NTPServer.<xmlattr>.IP",           hostNTP = "172.28.1.3");
+		pt.add("NTPServer.<xmlattr>.MaxClockDiff", maxClockDiff = 5);
 
 		// 文件服务器(==数据处理机)
-		ptree &node7 = pt.add("FileServer", "");
-		node7.add("Enable",   bFileSrv    = false);
-		node7.add("IP",       hostFileSrv = "172.28.2.11");
-		node7.add("Port",     portFileSrv = 4015);
+		pt.add("FileServer.<xmlattr>.Enable",   bFileSrv    = false);
+		pt.add("FileServer.<xmlattr>.IP",       hostFileSrv = "172.28.2.11");
+		pt.add("FileServer.<xmlattr>.Port",     portFileSrv = 4015);
 
 		// 本地文件存储路径
-		ptree &node8 = pt.add("LocalStorage", "");
-		node8.add("PathName",        pathLocal = "/data");
-		node8.add("AutoFreeDisk",    bAutoFree = false);
-		node8.add("MinimumFreeDisk", minDiskFree = 100);
-		node8.add("<xmlcomment>", "Disk capacity unit is GB");
+		ptree &node5 = pt.add("LocalStorage", "");
+		node5.add("PathName",        pathLocal = "/data");
+		node5.add("AutoFree.<xmlattr>.Enable",      bAutoFree = false);
+		node5.add("AutoFree.<xmlattr>.MinCapacity", minDiskFree = 100);
+		node5.add("<xmlcomment>", "Disk capacity unit is GB");
+
+		// 滤光片
+		nameFilter.clear();
+		ptree &node6 = pt.add("Filter", "");
+		node6.add("Enable", bFilter = false);
+		node6.add("Number", nFilter = 5);
+		node6.add("#1.<xmlattr>.Name", "U");
+		node6.add("#2.<xmlattr>.Name", "B");
+		node6.add("#3.<xmlattr>.Name", "V");
+		node6.add("#4.<xmlattr>.Name", "R");
+		node6.add("#5.<xmlattr>.Name", "I");
+		string filter1 = "U";
+		string filter2 = "B";
+		string filter3 = "V";
+		string filter4 = "R";
+		string filter5 = "I";
+		nameFilter.push_back(filter1);
+		nameFilter.push_back(filter2);
+		nameFilter.push_back(filter3);
+		nameFilter.push_back(filter4);
+		nameFilter.push_back(filter5);
 
 		// 显示图像
-		ptree &node9 = pt.add("DisplayImage", "");
-		node9.add("Enable", bShowImg = false);
+		pt.add("DisplayImage.<xmlattr>.Enable", bShowImg = false);
 
 		boost::property_tree::xml_writer_settings<string> settings(' ', 4);
 		write_xml(filepath, pt, std::locale(), settings);
@@ -166,41 +189,53 @@ public:
 			tsaturate = pt.get("Camera.ReverseSaturation",  500.0);
 
 			// ROI
-			xstart = pt.get("RegionOfInterest.StartX",  1);
-			ystart = pt.get("RegionOfInterest.StartY",  1);
-			wroi   = pt.get("RegionOfInterest.Width",  -1);
-			hroi   = pt.get("RegionOfInterest.Height", -1);
-			xbin   = pt.get("RegionOfInterest.BinX",    1);
-			ybin   = pt.get("RegionOfInterest.BinY",    1);
+			xstart = pt.get("RegionOfInterest.Start.<xmlattr>.X",  1);
+			ystart = pt.get("RegionOfInterest.Start.<xmlattr>.Y",  1);
+			wroi   = pt.get("RegionOfInterest.Dimension.<xmlattr>.Width",  -1);
+			hroi   = pt.get("RegionOfInterest.Dimension.<xmlattr>.Height", -1);
+			xbin   = pt.get("RegionOfInterest.Bin.<xmlattr>.X",    1);
+			ybin   = pt.get("RegionOfInterest.Bin.<xmlattr>.Y",    1);
 
 			// 平场
-			tLow    = pt.get("AutoFlat.LowerThreshold",  15000.0);
-			tHigh   = pt.get("AutoFlat.HigherThreshold", 40000.0);
-			tExpect = pt.get("AutoFlat.ExpectThreshold", 30000.0);
-			edMin   = pt.get("AutoFlat.MinimumExptime",      2.0);
-			edMax   = pt.get("AutoFlat.MaximumExptime",     15.0);
+			tLow    = pt.get("AutoFlat.Threshold.<xmlattr>.Low",    15000.0);
+			tHigh   = pt.get("AutoFlat.Threshold.<xmlattr>.High",   40000.0);
+			tExpect = pt.get("AutoFlat.Threshold.<xmlattr>.Expect", 30000.0);
+			edMin   = pt.get("AutoFlat.Exptime.<xmlattr>.Min",      2.0);
+			edMax   = pt.get("AutoFlat.Exptime.<xmlattr>.Max",     15.0);
 
 			// 总控服务器
-			hostGC = pt.get("GeneralControlServer.IP", "172.28.1.11");
-			portGC = pt.get("GeneralControlServer.IP", 4013);
+			hostGC = pt.get("GeneralControlServer.<xmlattr>.IP",   "172.28.1.11");
+			portGC = pt.get("GeneralControlServer.<xmlattr>.Port", 4013);
 
 			// NTP服务器
-			bNTP         = pt.get("NTPServer.Enable",                 true);
-			hostNTP      = pt.get("NTPServer.IP",                     "172.28.1.3");
-			maxClockDiff = pt.get("NTPServer.MaximumClockDifference", 5);
+			bNTP         = pt.get("NTPServer.<xmlattr>.Enable",       true);
+			hostNTP      = pt.get("NTPServer.<xmlattr>.IP",           "172.28.1.3");
+			maxClockDiff = pt.get("NTPServer.<xmlattr>.MaxClockDiff", 5);
 
 			// 文件服务器(==数据处理机)
-			bFileSrv    = pt.get("FileServer.Enable", true);
-			hostFileSrv = pt.get("FileServer.IP",     "172.28.2.11");
-			portFileSrv = pt.get("FileServer.Port",   4015);
+			bFileSrv    = pt.get("FileServer.<xmlattr>.Enable", true);
+			hostFileSrv = pt.get("FileServer.<xmlattr>.IP",     "172.28.2.11");
+			portFileSrv = pt.get("FileServer.<xmlattr>.Port",   4015);
 
 			// 本地文件存储路径
 			pathLocal   = pt.get("LocalStorage.PathName",        "/data");
-			bAutoFree   = pt.get("LocalStorage.AutoFreeDisk",    false);
-			minDiskFree = pt.get("LocalStorage.MinimumFreeDisk", 100);
+			bAutoFree   = pt.get("LocalStorage.AutoFree.<xmlattr>.Enable",    false);
+			minDiskFree = pt.get("LocalStorage.AutoFree.<xmlattr>.MinCapacity", 100);
+
+			// 滤光片
+			nameFilter.clear();
+			bFilter = pt.get("Filter.Enable", false);
+			nFilter = pt.get("Filter.Number", 5);
+			boost::format fmt("Filter.#%d.<xmlattr>.Name");
+			for (int i = 1; i <= nFilter; ++i) {
+				string name;
+				fmt % i;
+				name = pt.get(fmt.str(), "null");
+				nameFilter.push_back(name);
+			}
 
 			// 显示图像
-			bShowImg = pt.get("DisplayImage.Enable", false);
+			bShowImg = pt.get("DisplayImage.<xmlattr>.Enable", false);
 		}
 		catch(boost::property_tree::xml_parser_error &ex) {
 			InitFile(filepath);

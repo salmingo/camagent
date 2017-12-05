@@ -123,15 +123,15 @@ void cameracs::connect_server() {
  */
 bool cameracs::connect_camera() {
 	switch(param_->camType) {
-	case 1:
+	case 1: // Andor
 		break;
-	case 2:
+	case 2: // FLI
 		break;
-	case 3:
+	case 3: // Apogee
 		break;
-	case 4:
+	case 4: // PI
 		break;
-	case 5:
+	case 5: // GWAC-GY
 		break;
 	default:
 		break;
