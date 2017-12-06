@@ -96,8 +96,10 @@ PROGRAMS = $(bin_PROGRAMS)
 am_camagent_OBJECTS = daemon.$(OBJEXT) GLog.$(OBJEXT) \
 	IOServiceKeep.$(OBJEXT) MessageQueue.$(OBJEXT) \
 	NTPClient.$(OBJEXT) tcpasio.$(OBJEXT) udpasio.$(OBJEXT) \
-	CameraBase.$(OBJEXT) apgSampleCmn.$(OBJEXT) cameracs.$(OBJEXT) \
-	camagent.$(OBJEXT)
+	CameraBase.$(OBJEXT) CameraAndorCCD.$(OBJEXT) \
+	CameraFLICCD.$(OBJEXT) apgSampleCmn.$(OBJEXT) \
+	CameraApogee.$(OBJEXT) CameraPICCD.$(OBJEXT) \
+	CameraGYCCD.$(OBJEXT) cameracs.$(OBJEXT) camagent.$(OBJEXT)
 camagent_OBJECTS = $(am_camagent_OBJECTS)
 am__DEPENDENCIES_1 =
 camagent_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
@@ -264,7 +266,11 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 camagent_SOURCES = daemon.cpp GLog.cpp IOServiceKeep.cpp MessageQueue.cpp NTPClient.cpp tcpasio.cpp udpasio.cpp \
 				  CameraBase.cpp \
-				  apgSampleCmn.cpp \
+				  CameraAndorCCD.cpp \
+				  CameraFLICCD.cpp \
+				  apgSampleCmn.cpp CameraApogee.cpp \
+				  CameraPICCD.cpp \
+				  CameraGYCCD.cpp \
 				  cameracs.cpp camagent.cpp
 
 AM_CPPFLAGS = -I/usr/local/include/libapogee-3.0
@@ -359,7 +365,12 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraAndorCCD.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraApogee.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraBase.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraFLICCD.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraGYCCD.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraPICCD.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GLog.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/IOServiceKeep.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/MessageQueue.Po@am__quote@

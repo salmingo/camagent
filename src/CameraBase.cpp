@@ -94,6 +94,9 @@ void CameraBase::SetADCOffset(uint16_t offset) {
 	}
 }
 
+void CameraBase::SetNetwork(const char *ip, const char *mask, const char *gateway) {
+}
+
 void CameraBase::RegisterExposeProcess(const ExpProcSlot &slot) {
 	if (nfcam_->state <= CAMSTAT_IDLE) {
 		if (!cbexp_.empty()) cbexp_.disconnect_all_slots();

@@ -132,28 +132,28 @@ public:
 		string	model;		//< 型号
 		int		wsensor;		//< 探测器宽度, 像素
 		int		hsensor;		//< 探测器高度, 像素
-		uint32_t		readport;	//< 读出端口档位
-		uint32_t		readrate;	//< 读出速度档位
-		uint32_t		gain;		//< 增益档位
+		uint32_t	readport;	//< 读出端口档位
+		uint32_t	readrate;	//< 读出速度档位
+		uint32_t	gain;		//< 增益档位
 		double coolset;		//< 制冷温度
 
-		bool		connected;	//< 连接标志
+		bool	connected;	//< 连接标志
 		int		mode;		//< 工作模式
 		int		state;		//< 工作状态. CAMERA_STATUS枚举值
-		int		errcode;		//< 错误代码. 此时state == CAMERA_ERROR ?
+		int		errcode;	//< 错误代码. 此时state == CAMERA_ERROR ?
 		string	errmsg;		//< 错误描述
-		double	coolget;		//< 芯片温度
-		ROI		roi;			//< 感兴趣区
+		double	coolget;	//< 芯片温度
+		ROI		roi;		//< 感兴趣区
 		ucharray data;		//< 图像数据存储区
 
-		bool		aborted;		//< 抛弃当前积分数据
+		bool	aborted;	//< 抛弃当前积分数据
 		double	expdur;		//< 积分时间, 量纲: 秒
 		ptime	tmobs;		//< 曝光起始时间, 用于记录和监测曝光进度
 		ptime	tmend;		//< 曝光结束时间
 		double	jd;			//< 曝光起始时间对应儒略日
 
-		string	datestr;		//< 曝光起始日期, 仅日期信息, 格式: YYMMDD
-		string	timestr;		//< 缩略曝光起始时间, 格式: YYMMDDThhmmssss
+		string	datestr;	//< 曝光起始日期, 仅日期信息, 格式: YYMMDD
+		string	timestr;	//< 缩略曝光起始时间, 格式: YYMMDDThhmmssss
 
 	public:
 		/*!
@@ -342,7 +342,7 @@ public:
 	 * @param mask    子网掩码
 	 * @param gateway 网关
 	 */
-	virtual void SetNetwork(const char *ip, const char *mask, const char *gateway) = 0;
+	virtual void SetNetwork(const char *ip, const char *mask, const char *gateway);
 
 protected:
 	/* 功能 */

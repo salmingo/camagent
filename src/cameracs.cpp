@@ -15,9 +15,18 @@
  * - 改变延迟时间不足时的变更策略
  */
 
+#include <boost/make_shared.hpp>
 #include "globaldef.h"
 #include "GLog.h"
 #include "cameracs.h"
+//////////////////////////////////////////////////////////////////////////////
+// Camera API
+#include "CameraAndorCCD.h"
+#include "CameraApogee.h"
+#include "CameraFLICCD.h"
+#include "CameraGYCCD.h"
+#include "CameraPICCD.h"
+//////////////////////////////////////////////////////////////////////////////
 
 cameracs::cameracs(boost::asio::io_service* ios) {
 	ios_   = ios;
@@ -124,23 +133,54 @@ void cameracs::connect_server() {
 bool cameracs::connect_camera() {
 	switch(param_->camType) {
 	case 1: // Andor
+	{
+		boost::shared_ptr<CameraAndorCCD> camera = boost::make_shared<CameraAndorCCD>();
+		camPtr_ = boost::static_pointer_cast<CameraBase>(camera);
+	}
 		break;
 	case 2: // FLI
+	{
+		boost::shared_ptr<CameraFLICCD> camera = boost::make_shared<CameraFLICCD>();
+		camPtr_ = boost::static_pointer_cast<CameraBase>(camera);
+	}
 		break;
 	case 3: // Apogee
+	{
+		boost::shared_ptr<CameraApogee> camera = boost::make_shared<CameraApogee>();
+		camPtr_ = boost::static_pointer_cast<CameraBase>(camera);
+	}
 		break;
 	case 4: // PI
+	{
+		boost::shared_ptr<CameraPICCD> camera = boost::make_shared<CameraPICCD>();
+		camPtr_ = boost::static_pointer_cast<CameraBase>(camera);
+	}
 		break;
 	case 5: // GWAC-GY
+	{
+		boost::shared_ptr<CameraGYCCD> camera = boost::make_shared<CameraGYCCD>(param_->camIP.c_str());
+		camPtr_ = boost::static_pointer_cast<CameraBase>(camera);
+	}
 		break;
 	default:
-		break;
+		_gLog.Write(LOG_FAULT, NULL, "unknown camera type<%d>", param_->camType);
+		return false;
 	}
 
-	const CameraBase::ExpProcSlot &slot = boost::bind(&cameracs::expose_process, this, _1, _2, _3);
-	if (camPtr_.unique()) camPtr_->RegisterExposeProcess(slot);
+	CameraBase::InfoPtr nfcam = camPtr_->GetInformation();
+	if (!camPtr_->Connect()) {
+		_gLog.Write(LOG_FAULT, NULL, "Fail to connect camera. %s", nfcam->errmsg.c_str());
+	}
+	else {
+		const CameraBase::ExpProcSlot &slot = boost::bind(&cameracs::expose_process, this, _1, _2, _3);
+		camPtr_->RegisterExposeProcess(slot);
+		camPtr_->SetReadPort(param_->readport);
+		camPtr_->SetReadRate(param_->readrate);
+		camPtr_->SetGain(param_->gain);
+		camPtr_->SetCooler(param_->coolerset);
+	}
 
-	return (camPtr_.unique() && camPtr_->IsConnected());
+	return (camPtr_->IsConnected());
 }
 
 /*
