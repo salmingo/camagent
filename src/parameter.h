@@ -20,6 +20,9 @@
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 
+#include <iostream>
+using namespace std;
+
 using std::string;
 using std::vector;
 
@@ -37,10 +40,6 @@ struct param_config {// 软件配置参数
 	int		gain;			//< 档位: 增益
 	double	coolerset;		//< 制冷温度
 	double	tsaturate;		//< 无饱和抑制功能相机, 当饱和时数据将反转. 当图像数据统计结果小于该值时, 表明图像出现饱和
-	// ROI区
-	int		xstart, ystart;	//< 左上角在全幅图中的位置, 原点: (1,1)
-	int		wroi, hroi;		//< 区域在全幅图中的对应尺寸, 量纲: 像素
-	int		xbin, ybin;		//< XY方向合并因子
 	// 平场参数
 	double	tLow, tHigh, tExpect;	//< 平场均值阈值
 	double	edMin, edMax;			//< 曝光时间限制
@@ -100,22 +99,13 @@ public:
 		node2.add("<xmlcomment>", "ReverseSaturation: reverse ADU being saturated without anti-blooming capability");
 		node2.add("ReverseSaturation", tsaturate = 500.0);
 
-		// ROI
-		ptree &node3 = pt.add("RegionOfInterest", "");
-		node3.add("Start.<xmlattr>.X", xstart = 1);
-		node3.add("Start.<xmlattr>.Y", ystart = 1);
-		node3.add("Dimension.<xmlattr>.Width",  wroi   = -1);
-		node3.add("Dimension.<xmlattr>.Height", hroi   = -1);
-		node3.add("Bin.<xmlattr>.X",   xbin   = 1);
-		node3.add("Bin.<xmlattr>.Y",   ybin   = 1);
-
 		// 平场阈值
-		ptree &node4 = pt.add("AutoFlat", "");
-		node4.add("Threshold.<xmlattr>.Low",    tLow    = 15000.0);
-		node4.add("Threshold.<xmlattr>.High",   tHigh   = 40000.0);
-		node4.add("Threshold.<xmlattr>.Expect", tExpect = 30000.0);
-		node4.add("Exptime.<xmlattr>.Min",      edMin   =  2.0);
-		node4.add("Exptime.<xmlattr>.Max",      edMax   = 15.0);
+		ptree &node3 = pt.add("AutoFlat", "");
+		node3.add("Threshold.<xmlattr>.Low",    tLow    = 15000.0);
+		node3.add("Threshold.<xmlattr>.High",   tHigh   = 40000.0);
+		node3.add("Threshold.<xmlattr>.Expect", tExpect = 30000.0);
+		node3.add("Exptime.<xmlattr>.Min",      edMin   =  2.0);
+		node3.add("Exptime.<xmlattr>.Max",      edMax   = 15.0);
 
 		// 总控服务器
 		pt.add("GeneralControlServer.<xmlattr>.IP",   hostGC = "172.28.1.11");
@@ -124,7 +114,7 @@ public:
 		// NTP服务器
 		pt.add("NTPServer.<xmlattr>.Enable",       bNTP    = true);
 		pt.add("NTPServer.<xmlattr>.IP",           hostNTP = "172.28.1.3");
-		pt.add("NTPServer.<xmlattr>.MaxClockDiff", maxClockDiff = 5);
+		pt.add("NTPServer.<xmlattr>.MaxClockDiff", maxClockDiff = 10);
 
 		// 文件服务器(==数据处理机)
 		pt.add("FileServer.<xmlattr>.Enable",   bFileSrv    = false);
@@ -132,22 +122,22 @@ public:
 		pt.add("FileServer.<xmlattr>.Port",     portFileSrv = 4015);
 
 		// 本地文件存储路径
-		ptree &node5 = pt.add("LocalStorage", "");
-		node5.add("PathName",        pathLocal = "/data");
-		node5.add("AutoFree.<xmlattr>.Enable",      bAutoFree = false);
-		node5.add("AutoFree.<xmlattr>.MinCapacity", minDiskFree = 100);
-		node5.add("<xmlcomment>", "Disk capacity unit is GB");
+		ptree &node4 = pt.add("LocalStorage", "");
+		node4.add("PathName",        pathLocal = "/data");
+		node4.add("AutoFree.<xmlattr>.Enable",      bAutoFree = true);
+		node4.add("AutoFree.<xmlattr>.MinCapacity", minDiskFree = 100);
+		node4.add("<xmlcomment>", "Disk capacity unit is GB");
 
 		// 滤光片
 		nameFilter.clear();
-		ptree &node6 = pt.add("Filter", "");
-		node6.add("Enable", bFilter = false);
-		node6.add("Number", nFilter = 5);
-		node6.add("#1.<xmlattr>.Name", "U");
-		node6.add("#2.<xmlattr>.Name", "B");
-		node6.add("#3.<xmlattr>.Name", "V");
-		node6.add("#4.<xmlattr>.Name", "R");
-		node6.add("#5.<xmlattr>.Name", "I");
+		ptree &node5 = pt.add("Filter", "");
+		node5.add("Enable", bFilter = false);
+		node5.add("Number", nFilter = 5);
+		node5.add("#1.<xmlattr>.Name", "U");
+		node5.add("#2.<xmlattr>.Name", "B");
+		node5.add("#3.<xmlattr>.Name", "V");
+		node5.add("#4.<xmlattr>.Name", "R");
+		node5.add("#5.<xmlattr>.Name", "I");
 		string filter1 = "U";
 		string filter2 = "B";
 		string filter3 = "V";
@@ -188,14 +178,6 @@ public:
 			coolerset = pt.get("Camera.CoolerSet",         -20.0);
 			tsaturate = pt.get("Camera.ReverseSaturation",  500.0);
 
-			// ROI
-			xstart = pt.get("RegionOfInterest.Start.<xmlattr>.X",  1);
-			ystart = pt.get("RegionOfInterest.Start.<xmlattr>.Y",  1);
-			wroi   = pt.get("RegionOfInterest.Dimension.<xmlattr>.Width",  -1);
-			hroi   = pt.get("RegionOfInterest.Dimension.<xmlattr>.Height", -1);
-			xbin   = pt.get("RegionOfInterest.Bin.<xmlattr>.X",    1);
-			ybin   = pt.get("RegionOfInterest.Bin.<xmlattr>.Y",    1);
-
 			// 平场
 			tLow    = pt.get("AutoFlat.Threshold.<xmlattr>.Low",    15000.0);
 			tHigh   = pt.get("AutoFlat.Threshold.<xmlattr>.High",   40000.0);
@@ -210,7 +192,7 @@ public:
 			// NTP服务器
 			bNTP         = pt.get("NTPServer.<xmlattr>.Enable",       true);
 			hostNTP      = pt.get("NTPServer.<xmlattr>.IP",           "172.28.1.3");
-			maxClockDiff = pt.get("NTPServer.<xmlattr>.MaxClockDiff", 5);
+			maxClockDiff = pt.get("NTPServer.<xmlattr>.MaxClockDiff", 10);
 
 			// 文件服务器(==数据处理机)
 			bFileSrv    = pt.get("FileServer.<xmlattr>.Enable", true);

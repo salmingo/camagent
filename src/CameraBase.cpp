@@ -108,10 +108,11 @@ void CameraBase::thread_cycle() {
 	boost::chrono::seconds period(10);
 	double coolget;
 
+	boost::this_thread::sleep_for(boost::chrono::seconds(1));
 	while(1) {
-		boost::this_thread::sleep_for(period);
 		coolget = sensor_temperature();
 		if (nfcam_->coolget != coolget) nfcam_->coolget = coolget;
+		boost::this_thread::sleep_for(period);
 	}
 }
 

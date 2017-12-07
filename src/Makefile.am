@@ -6,6 +6,7 @@ camagent_SOURCES= daemon.cpp GLog.cpp IOServiceKeep.cpp MessageQueue.cpp NTPClie
 				  apgSampleCmn.cpp CameraApogee.cpp \
 				  CameraPICCD.cpp \
 				  CameraGYCCD.cpp \
+				  AsciiProtocol.cpp \
 				  cameracs.cpp camagent.cpp
 
 AM_CPPFLAGS=-I/usr/local/include/libapogee-3.0

@@ -32,6 +32,7 @@ cameracs::cameracs(boost::asio::io_service* ios) {
 	ios_   = ios;
 	param_ = boost::make_shared<param_config>();
 	bufrcv_.reset(new char[TCP_PACK_SIZE]);
+	ascproto_ = make_ascproto();
 }
 
 cameracs::~cameracs() {

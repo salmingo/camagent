@@ -47,6 +47,7 @@
 #include "tcpasio.h"
 #include "parameter.h"
 #include "CameraBase.h"
+#include "AsciiProtocol.h"
 
 class cameracs : public MessageQueue {
 public:
@@ -70,12 +71,67 @@ protected:
 	};
 	typedef boost::shared_array<char> charray;	//< 字符型数组
 
+	struct object_info {// 观测目标与观测计划信息
+		int op_sn;		//< 计划编号, [0, INT_MAX - 1). INT_MAX保留用于手动
+		string op_time;	//< 计划生成时间
+		string op_type;	//< 计划类型
+		string observer;	//< 观测者
+		string obstype;	//< 观测类型
+		string grid_id;	//< 天区划分模式
+		string field_id;//< 天区编号
+		string obj_id;	//< 目标名
+		double ra;		//< 指向赤经, 量纲: 角度
+		double dc;		//< 指向赤纬, 量纲: 角度
+		double epoch;	//< 指向坐标系
+		double objra;	//< 目标赤经, 量纲: 角度
+		double objdc;	//< 目标赤纬, 量纲: 角度
+		double objepoch;//< 目标坐标系
+		string objerror;	//< 位置误差
+		string imgtype;	//< 图像类型
+		string imgtypeabbr;	//< 图像类型缩写
+		int iimgtype;	//< 图像类型
+		double expdur;	//< 曝光时间, 量纲: 秒
+		double delay;	//< 帧间延迟, 量纲: 秒
+		int frmcnt;		//< 曝光帧数
+		int priority;	//< 优先级
+		string tmbegin;	//< 曝光起始时间, 格式: YYYYMMDDThhmmss.sss
+		string tmend;	//< 曝光结束时间
+		int pair_id;		//< 分组编号
+		string filter;	//< 滤光片名称
+		int focus;		//< 焦点位置
+
+	public:
+		object_info() {
+			reset();
+		}
+
+		void reset() {
+			op_sn = -1;
+			op_time = op_type = observer = obstype = "";
+			grid_id = field_id = obj_id = "";
+			ra = dc = epoch = 1E30;
+			objra = objdc = objepoch = 1E30;
+			objerror = "";
+			imgtype = imgtypeabbr = "";
+			iimgtype = IMGTYPE_ERROR;
+			expdur = delay = 0.0;
+			frmcnt = priority = 0;
+			tmbegin = tmend = "";
+			pair_id = -1;
+			filter = "";
+			focus = INT_MIN;
+		}
+	};
+
 protected:
 	/* 局部成员变量 */
 	boost::asio::io_service* ios_;	//< 主io_service服务, 用于内部终止程序
 	boost::shared_ptr<param_config> param_;		//< 程序配置参数
+
 	TcpCPtr tcpCli_;			// 网络连接
 	charray bufrcv_;			// 网络信息缓冲区
+	AscProtoPtr ascproto_;		// 通信协议接口
+
 	threadptr thrdNetwork_;		// 线程: 重连网络
 	threadptr thrdCamera_;		// 线程: 重连相机
 	threadptr thrdPeriod_;		// 线程: 周期信息

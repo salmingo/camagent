@@ -178,9 +178,12 @@ void TCPClient::handle_connect(const boost::system::error_code& ec) {
 }
 
 void TCPClient::handle_read(const boost::system::error_code& ec, int n) {
-	if (!ec && usebuf_) {
+	if (!ec){
 		mutex_lock lock(mtxrcv_);
-		for(int i = 0; i < n; ++i) crcrcv_.push_back(bufrcv_[i]);
+		if (usebuf_) {
+			for(int i = 0; i < n; ++i) crcrcv_.push_back(bufrcv_[i]);
+		}
+		else bytercv_ = n;
 	}
 	if (!cbrcv_.empty()) cbrcv_((const long) this, ec.value());
 	if (!ec) start_read();

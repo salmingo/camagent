@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <version>0.8</version>
-<date>2017-12-05T17:30:18</date>
+<date>2017-12-06T05:55:34</date>
 <ObservationSystem>
     <ID Group="001" Unit="001" Camera="001"/>
     <Terminal Type="JFoV"/>
@@ -30,11 +30,11 @@
     <Exptime Min="2" Max="15"/>
 </AutoFlat>
 <GeneralControlServer IP="172.28.1.11" Port="4013"/>
-<NTPServer Enable="true" IP="172.28.1.3" MaxClockDiff="5"/>
+<NTPServer Enable="true" IP="172.28.1.3" MaxClockDiff="10"/>
 <FileServer Enable="false" IP="172.28.2.11" Port="4015"/>
 <LocalStorage>
     <PathName>/data</PathName>
-    <AutoFree Enable="false" MinCapacity="100"/>
+    <AutoFree Enable="true" MinCapacity="100"/>
     <!--Disk capacity unit is GB-->
 </LocalStorage>
 <Filter>
