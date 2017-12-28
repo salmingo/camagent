@@ -36,8 +36,12 @@ void CameraBase::Disconnect() {
 	}
 }
 
+bool CameraBase::Reboot() {
+	return false;
+}
+
 bool CameraBase::Expose(double duration, bool light) {
-	if (nfcam_->connected && nfcam_->mode == CAMMOD_NORMAL && nfcam_->state == CAMSTAT_IDLE) {
+	if (nfcam_->connected && nfcam_->state == CAMSTAT_IDLE) {
 		if (!start_expose(duration, light)) return false;
 		nfcam_->begin_expose(duration);
 		nfcam_->format_tmobs();
@@ -86,15 +90,35 @@ void CameraBase::SetROI(int xstart, int ystart, int width, int height, int xbin,
 	}
 }
 
-void CameraBase::SetADCOffset(uint16_t offset) {
+int CameraBase::SetADCOffset(uint16_t offset, FILE *output) {
+	int rslt(3);
 	if (nfcam_->connected && nfcam_->mode == CAMMOD_NORMAL && nfcam_->state == CAMSTAT_IDLE) {
 		nfcam_->mode = CAMMOD_CALIBRATE;
-		update_adcoffset(offset);
+		rslt = update_adcoffset(offset, output);
 		nfcam_->mode = CAMMOD_NORMAL;
 	}
+	return rslt;
 }
 
-void CameraBase::SetNetwork(const char *ip, const char *mask, const char *gateway) {
+int CameraBase::SetIP(const char *ip) {
+	if (nfcam_->connected && nfcam_->mode == CAMMOD_NORMAL && nfcam_->state == CAMSTAT_IDLE) {
+		return update_network(1, ip);
+	}
+	return 3;
+}
+
+int CameraBase::SetNetmask(const char *mask) {
+	if (nfcam_->connected && nfcam_->mode == CAMMOD_NORMAL && nfcam_->state == CAMSTAT_IDLE) {
+		return update_network(2, mask);
+	}
+	return 3;
+}
+
+int CameraBase::SetGateway(const char *gw) {
+	if (nfcam_->connected && nfcam_->mode == CAMMOD_NORMAL && nfcam_->state == CAMSTAT_IDLE) {
+		return update_network(3, gw);
+	}
+	return 3;
 }
 
 void CameraBase::RegisterExposeProcess(const ExpProcSlot &slot) {
@@ -137,10 +161,9 @@ void CameraBase::thread_expose() {
 			state = readout_image();
 		}
 		/*
-		 * 曝光过程结束时, 可能出现三种状态:
+		 * 曝光过程结束时, 可能出现两种状态:
 		 * 1) CAMERA_IMGRDY: 正常结束, 图像已进入内存
 		 * 2) CMAERA_IDLE  : 异常结束, 设备无错误
-		 * 3) CAMERA_ERROR : 异常结束, 设备错误
 		 */
 		if (state == CAMSTAT_IMGRDY && nfcam_->aborted) state = CAMSTAT_IDLE;
 		if (!cbexp_.empty()) cbexp_(state, 0.0, 100.0);

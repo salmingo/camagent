@@ -116,6 +116,7 @@ void NTPClient::thread_body() {
 
 			offset_ = ((t2 - t1) + (t3 - t4)) * 0.5;
 			delay   = (t4 - t1) - (t3 - t2);
+			valid_  = delay < 1E-3;
 
 			if (offset_ >= tSync_ || offset_ <= -tSync_) {
 				if (autoSync_) SynchClock();
