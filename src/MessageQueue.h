@@ -26,7 +26,7 @@ protected:
 	};
 
 	struct MSG_UNIT {// 消息单元
-		long id;		//< 消息代码
+		long id;	//< 消息代码
 		long par1;	//< 参数(支持两个参数)
 		long par2;
 
@@ -90,12 +90,13 @@ public:
 	 */
 	void SendMessage(const long id, const long p1 = 0, const long p2 = 0);
 	/*!
-	 * @brief 创建消息队列并启动监测/响应服务
-	 * @param name 消息队列名称
+	 * @brief 创建/打开消息队列并启动监测/响应服务
+	 * @param name      消息队列名称
+	 * @param is_create 创建或打开消息队列
 	 * @return
 	 * 操作结果. false代表失败
 	 */
-	bool Start(const char* name);
+	bool Start(const char* name, bool is_create = true);
 	/*!
 	 * @brief 停止消息队列监测/响应服务, 并销毁消息队列
 	 */

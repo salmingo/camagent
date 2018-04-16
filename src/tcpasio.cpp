@@ -81,7 +81,7 @@ void TCPClient::UseBuffer(bool usebuf) {
 }
 
 /*
- * @note UseBuffer()应在建立连接前仅调用一次
+ * @note 注册回调函数
  */
 void TCPClient::RegisterConnect(const CBSlot& slot) {
 	if (!cbconn_.empty()) cbconn_.disconnect_all_slots();
@@ -89,7 +89,7 @@ void TCPClient::RegisterConnect(const CBSlot& slot) {
 }
 
 /*
- * @brief 可多次调用
+ * @brief 注册回调函数
  */
 void TCPClient::RegisterRead(const CBSlot& slot) {
 	mutex_lock lck(mtxrcv_);
@@ -98,7 +98,7 @@ void TCPClient::RegisterRead(const CBSlot& slot) {
 }
 
 /*
- * @brief 可多次调用
+ * @brief 注册回调函数
  */
 void TCPClient::RegisterWrite(const CBSlot& slot) {
 	mutex_lock lck(mtxsnd_);

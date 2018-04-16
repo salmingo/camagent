@@ -5,14 +5,16 @@
  */
 
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <sys/types.h>	// Linux需要
 #include <unistd.h>
 #include <stdarg.h>
+#include <string>
 #include <boost/filesystem/path.hpp>
 #include <boost/format.hpp>
-#include "globaldef.h"
 #include "GLog.h"
+#include "globaldef.h"
 
+using std::string;
 using namespace boost::posix_time;
 
 GLog::GLog(FILE *out) {
@@ -43,7 +45,7 @@ bool GLog::valid_file(ptime &t) {
 			boost::format fmt("%s%s.log");
 			fmt % gLogPrefix % to_iso_string(date).c_str();
 			path /= fmt.str();
-			fd_ = fopen(path.c_str(), "a+t");
+			fd_ = fopen(path.c_str(), "a+");
 			fprintf(fd_, "%s\n", string(79, '-').c_str());
 		}
 	}

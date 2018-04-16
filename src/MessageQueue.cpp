@@ -41,18 +41,22 @@ void MessageQueue::SendMessage(const long id, const long p1, const long p2) {
 	}
 }
 
-bool MessageQueue::Start(const char* name) {
+bool MessageQueue::Start(const char* name, bool is_create) {
 	if (thrdmsg_.unique()) return true;
 
 	try {
-		message_queue::remove(name);
-		mq_.reset(new message_queue(boost::interprocess::create_only, name, 1024, sizeof(MSG_UNIT)));
+		if (is_create) {
+			mq_.reset(new message_queue(boost::interprocess::open_or_create, name, 1024, sizeof(MSG_UNIT)));
+		}
+		else {
+			mq_.reset(new message_queue(boost::interprocess::open_only, name));
+		}
 		thrdmsg_.reset(new boost::thread(boost::bind(&MessageQueue::thread_message, this)));
 
 		return true;
 	}
 	catch(boost::interprocess::interprocess_exception& ex) {
-		_gLog.Write(LOG_FAULT, "MessageQueue::Start", "%s", ex.what());
+		g_Log.Write(LOG_FAULT, "MessageQueue::Start", "%s", ex.what());
 		return false;
 	}
 }
@@ -61,16 +65,13 @@ void MessageQueue::Stop() {
 	if (thrdmsg_.unique()) {
 		SendMessage(MSG_QUIT);
 		thrdmsg_->join();
-		thrdmsg_.reset();
 	}
-	if (mq_.unique()) mq_.reset();
 }
 
 void MessageQueue::interrupt_thread(threadptr& thrd) {
 	if (thrd.unique()) {
 		thrd->interrupt();
 		thrd->join();
-		thrd.reset();
 	}
 }
 
