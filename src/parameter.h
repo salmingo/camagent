@@ -99,21 +99,51 @@ public:
 		/* 逐项生成参数 */
 		// 相机
 		ptree &camera = pt.add("Camera", "");
-		camera.add("Terminal.<xmlattr>.Type", termType = "JFoV");
-		camera.add("Camera.<xmlattr>.Type",   camType  = 5);
-		camera.add("<xmlcomment>", "Type#1: Andor CCD");
-		camera.add("<xmlcomment>", "Type#2: FLI CCD");
-		camera.add("<xmlcomment>", "Type#3: Apogee CCD");
-		camera.add("<xmlcomment>", "Type#4: PI CCD");
+		camera.add("TerminalType", termType = "JFoV");
+		camera.add("CameraType",   camType  = 5);
+		camera.add("<xmlcomment>", "Type#1: Andor CCD"  );
+		camera.add("<xmlcomment>", "Type#2: FLI CCD"    );
+		camera.add("<xmlcomment>", "Type#3: Apogee CCD" );
+		camera.add("<xmlcomment>", "Type#4: PI CCD"     );
 		camera.add("<xmlcomment>", "Type#5: GWAC-GY CCD");
-		camera.add("Camera.<xmlattr>.IP",         camIP     = "172.28.4.11");
-		camera.add("Setting.<xmlattr>.Readport",  readport  = 0);
-		camera.add("Setting.<xmlattr>.Readrate",  readrate  = 0);
-		camera.add("Setting.<xmlattr>.Gain",      gain      = 1);
-		camera.add("EM.<xmlattr>.Enabled",        bEM       = false);
-		camera.add("EM.<xmlattr>.Gain",           gainEM    = 10);
-		camera.add("Cooler.<xmlattr>.Target",     coolerset = -40.0);
-		camera.add("ReverseSaturation.<xmlattr>.Value", tsaturate = 500.0);
+		camera.add("IPAddress",    camIP     = "172.28.4.11");
+		camera.add("Setting.<xmlattr>.Readport", readport  = 0);
+		camera.add("Setting.<xmlattr>.Readrate", readrate  = 0);
+		camera.add("Setting.<xmlattr>.Gain",     gain      = 1);
+		camera.add("CoolerTarget",        coolerset = -40.0);
+		camera.add("ReverseSaturation",   tsaturate = 500.0);
+		camera.add("EM.<xmlattr>.Enable", bEM       = false);
+		camera.add("EM.<xmlattr>.Gain",   gainEM    = 10);
+		// 滤光片
+		sFilter.clear();
+		ptree &filter = pt.add("Filter", "");
+		filter.add("Setting.<xmlattr>.Enable",    bFilter = false);
+		filter.add("Setting.<xmlattr>.SlotCount", nFilter = 5);
+		filter.add("#1.<xmlattr>.Name", "U");
+		filter.add("#2.<xmlattr>.Name", "B");
+		filter.add("#3.<xmlattr>.Name", "V");
+		filter.add("#4.<xmlattr>.Name", "R");
+		filter.add("#5.<xmlattr>.Name", "I");
+
+		sFilter.push_back("U");
+		sFilter.push_back("B");
+		sFilter.push_back("V");
+		sFilter.push_back("R");
+		sFilter.push_back("I");
+		/* 本地文件存储格式 */
+		pathLocal.clear();
+		ptree &fileloc = pt.add("LocalStorage", "");
+
+		strvec pathLocal;	//< 文件存储根路径
+		bool   bFreeDisk;	//< 是否自动清理磁盘空间
+		int    minDisk;		//< 最小可用磁盘空间, 量纲: GB
+		/*!
+		 * @member pathstyle 文件路径及文件名格式
+		 * 1: GWAC格式
+		 * 2: GFT格式
+		 * 3: 50BiN格式
+		 */
+		int    pathstyle;
 	}
 
 	/*!
