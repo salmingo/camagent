@@ -40,7 +40,7 @@ private:
 	int    nFilter;		//< 滤光片控制器插槽数量
 	strvec sFilter;		//< 各槽位滤光片通用名称
 	/* 本地文件存储格式 */
-	strvec pathLocal;	//< 文件存储根路径
+	string pathLocal;	//< 文件存储根路径
 	bool   bFreeDisk;	//< 是否自动清理磁盘空间
 	int    minDisk;		//< 最小可用磁盘空间, 量纲: GB
 	/*!
@@ -100,13 +100,13 @@ public:
 		// 相机
 		ptree &camera = pt.add("Camera", "");
 		camera.add("TerminalType", termType = "JFoV");
-		camera.add("CameraType",   camType  = 5);
 		camera.add("<xmlcomment>", "Type#1: Andor CCD"  );
 		camera.add("<xmlcomment>", "Type#2: FLI CCD"    );
 		camera.add("<xmlcomment>", "Type#3: Apogee CCD" );
 		camera.add("<xmlcomment>", "Type#4: PI CCD"     );
 		camera.add("<xmlcomment>", "Type#5: GWAC-GY CCD");
-		camera.add("IPAddress",    camIP     = "172.28.4.11");
+		camera.add("CameraType",   camType  = 5);
+		camera.add("IPAddress",    camIP    = "172.28.4.11");
 		camera.add("Setting.<xmlattr>.Readport", readport  = 0);
 		camera.add("Setting.<xmlattr>.Readrate", readrate  = 0);
 		camera.add("Setting.<xmlattr>.Gain",     gain      = 1);
@@ -131,7 +131,6 @@ public:
 		sFilter.push_back("R");
 		sFilter.push_back("I");
 		/* 本地文件存储格式 */
-		pathLocal.clear();
 		ptree &fileloc = pt.add("LocalStorage", "");
 
 		strvec pathLocal;	//< 文件存储根路径
