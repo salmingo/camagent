@@ -65,6 +65,7 @@ void MessageQueue::Stop() {
 	if (thrdmsg_.unique()) {
 		SendMessage(MSG_QUIT);
 		thrdmsg_->join();
+		thrdmsg_.reset();
 	}
 }
 
