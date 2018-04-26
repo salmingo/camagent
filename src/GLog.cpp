@@ -1,5 +1,5 @@
 /*
- * @file GLog.cpp 类GLog的定义文件
+ * @file GLog.cpp 类GLog的声明文件, 实现日志文件的操作
  * @version      2.0
  * @date    2016年10月28日
  */

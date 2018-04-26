@@ -1,5 +1,5 @@
 /*
- * @file parameter.h 配置文件声明文件
+ * @file parameter.h 定义软件可配置参数
  * @version 1.0
  * @author 卢晓猛
  * @email lxm@nao.cas.cn

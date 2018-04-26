@@ -1,5 +1,5 @@
 /*
- * @file GLog.h  类GLog声明文件
+ * @file GLog.h  类GLog, 定义日志文件操作接口
  * @author       卢晓猛
  * @description  日志文件访问接口
  * @version      2.0

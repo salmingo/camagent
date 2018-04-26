@@ -1,5 +1,6 @@
 bin_PROGRAMS=camagent
 camagent_SOURCES= daemon.cpp GLog.cpp IOServiceKeep.cpp MessageQueue.cpp NTPClient.cpp tcpasio.cpp udpasio.cpp \
+				  VersionMonitor.cpp \
 				  apgSampleCmn.cpp \
 				  cameracs.cpp camagent.cpp
 

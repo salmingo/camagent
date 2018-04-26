@@ -1,5 +1,5 @@
 /*
- * @file VersionMonitor.h 版本监视声明文件
+ * @file VersionMonitor.h 版本监视定义文件
  * @version 1.0
  * @author 卢晓猛
  * @email lxm@nao.cas.cn
@@ -21,13 +21,13 @@ public:
 public:
 	// 数据类型
 	// 声明VersionMonitor回调函数类型
-	typedef boost::signals2::signal<void ()> CallbackFunc;
+	typedef boost::signals2::signal<void ()> CallbackFunc0;
 	// 基于boost::signals2声明插槽类型
-	typedef CallbackFunc::slot_type CBSlot;
+	typedef CallbackFunc0::slot_type CBSlot0;
 
 protected:
 	enum MSG_VM {
-		MSG_TERMINATE	// 终止程序
+		MSG_TERMINATE = MSG_USER	// 终止程序
 	};
 
 public:
@@ -38,24 +38,20 @@ public:
 	 */
 	bool Start();
 	/*!
-	 * @brief 终止服务
-	 */
-	void Stop();
-	/*!
 	 * @brief 注册退出回调函数, 终止程序
 	 * @param slot 函数插槽
 	 */
-	void RegisterTerminate(const CBSlot& slot);
+	void RegisterTerminate(const CBSlot0& slot);
 
 protected:
 	/*!
 	 * @brief 响应消息MSG_TERMINATE, 终止程序
 	 */
-	void on_terminate(const long p1, const long p2);
+	void on_terminate(long p1, long p2);
 
 protected:
 	/* 成员变量 */
-	CallbackFunc cb_term_;	//< 回调函数
+	CallbackFunc0 cb_term_;	//< 回调函数
 };
 
 #endif /* SRC_VERSIONMONITOR_H_ */

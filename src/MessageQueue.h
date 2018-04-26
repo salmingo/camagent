@@ -1,5 +1,5 @@
 /*
- * @file MessageQueue.h 声明文件, 基于boost::interprocess::ipc::message_queue封装消息队列
+ * @file MessageQueue.h 定义文件, 基于boost::interprocess::ipc::message_queue封装消息队列
  * @version 0.2
  * @date 2017-10-02
  * - 优化消息队列实现方式

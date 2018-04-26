@@ -1,5 +1,5 @@
 /*
- * @file NTPClient.h 类NTPClient声明文件
+ * @file NTPClient.h 类NTPClient定义文件, 维护与NTP服务器的时钟偏差
  * @author       卢晓猛
  * @description  检查本机与NTP服务器的时间偏差, 并修正本机时钟
  * @version      1.0
