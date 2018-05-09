@@ -11,6 +11,8 @@
 #define SRC_CAMERABASE_H_
 
 #include <boost/smart_ptr.hpp>
+#include <boost/signals2.hpp>
+#include <boost/thread.hpp>
 
 enum CAMERA_STATE {// 相机工作状态
 	CAMERA_ERROR,	//< 错误
@@ -18,6 +20,14 @@ enum CAMERA_STATE {// 相机工作状态
 	CAMERA_EXPOSE,	//< 曝光中
 	CAMERA_IMGRDY	//< 曝光成功, 可以读出图像数据
 };
+
+/*!
+ * @brief 声明曝光进度回调函数
+ * @param <1> 曝光剩余时间, 量纲: 秒
+ * @param <2> 曝光进度, 量纲: 百分比
+ * @param <3> 图像数据状态, CAMERA_STATUS
+ */
+typedef boost::signals2::signal<void (const double, const double, const int)> ExposeProcess;
 
 class CameraBase {
 public:
@@ -120,7 +130,17 @@ protected:
 	virtual void CloseCamera() = 0;
 
 protected:
-	bool connected_;	//< 相机连接标志
+	/* 声明数据类型 */
+	typedef boost::shared_ptr<boost::thread> threadptr;
+	typedef boost::unique_lock<boost::mutex> mutex_lock;
+
+protected:
+	ExposeProcess exposeproc_;		//< 曝光进度回调函数
+	threadptr thrdExpose_;			//< 线程: 监测曝光进度和结果
+
+	bool connected_;		//< 相机连接标志
+	CAMERA_STATE state_;	//< 工作状态
+	int wsensor_, hsensor_;	//< 探测器尺寸, 量纲: 像素
 	boost::shared_array<uint8_t> data_;	//< 图像数据存储区
 };
 
