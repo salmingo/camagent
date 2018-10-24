@@ -3,6 +3,7 @@
  */
 #include <boost/make_shared.hpp>
 #include "GLog.h"
+#include "devicedef.h"
 #include "cameracs.h"
 
 cameracs::cameracs(boost::asio::io_service* ios) {
