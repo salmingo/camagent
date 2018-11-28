@@ -1,5 +1,5 @@
 /*
- * @file NTPClient.h 类NTPClient声明文件, 维护与NTP服务器之间的时钟偏差
+ * @file NTPClient.h 类NTPClient定义文件
  * @author       卢晓猛
  * @description  检查本机与NTP服务器的时间偏差, 并修正本机时钟
  * @version      1.0
@@ -121,12 +121,12 @@ void NTPClient::thread_body() {
 			if (offset_ >= tSync_ || offset_ <= -tSync_) {
 				if (autoSync_) SynchClock();
 				id = pack.reference_identifier;
-				g_Log.Write(LOG_WARN, NULL, "Clock drifts %.6f seconds. RefSrc=%c%c%c%c. delay=%.3f msecs",
+				_gLog.Write(LOG_WARN, NULL, "Clock drifts %.6f seconds. RefSrc=%c%c%c%c. delay=%.3f msecs",
 						offset_, id[0], id[1], id[2], id[3], delay * 1000);
 			}
 		}
 		else {
-			g_Log.Write(LOG_WARN, NULL, "Failed to communicate with NTP server<%s:%u>", host_.c_str(), port_);
+			_gLog.Write(LOG_WARN, NULL, "Failed to communicate with NTP server<%s:%u>", host_.c_str(), port_);
 			// 时钟偏差有效期: 5周期
 			if (++nfail_ >= 5 && valid_) valid_ = false;
 		}
@@ -163,7 +163,7 @@ int NTPClient::get_time(struct addrinfo *addr, struct ntp_packet *ret_time) {
 
 	construct_packet();
 	if (sendto(sock_, data, NTP_PCK_LEN, 0, addr->ai_addr, len) < 0) {
-		g_Log.Write(LOG_WARN, "NTPClient::sendto", strerror(errno));
+		_gLog.Write(LOG_WARN, "NTPClient::sendto", strerror(errno));
 		close(sock_);
 		sock_ = -1;
 	}
@@ -172,7 +172,7 @@ int NTPClient::get_time(struct addrinfo *addr, struct ntp_packet *ret_time) {
 		FD_SET(sock_, &pending_data);
 		if (select(sock_ + 1, &pending_data, NULL, NULL, &block_time) > 0) {
 			if (recvfrom(sock_, (void*)data, NTP_PCK_LEN * 8, 0, addr->ai_addr, &len) < 0) {
-				g_Log.Write(LOG_WARN, "NTPClient::recvfrom", strerror(errno));
+				_gLog.Write(LOG_WARN, "NTPClient::recvfrom", strerror(errno));
 				close(sock_);
 				sock_ = -1;
 			}

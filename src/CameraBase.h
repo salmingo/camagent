@@ -14,11 +14,11 @@
 #include <boost/signals2.hpp>
 #include <boost/thread.hpp>
 
-enum CAMERA_STATE {// 相机工作状态
-	CAMERA_ERROR,	//< 错误
-	CAMERA_IDLE,	//< 空闲
-	CAMERA_EXPOSE,	//< 曝光中
-	CAMERA_IMGRDY	//< 曝光成功, 可以读出图像数据
+enum CAMERA_STATUS {// 相机工作状态
+	CAMERA_ERROR,	// 错误
+	CAMERA_IDLE,	// 空闲
+	CAMERA_EXPOSE,	// 曝光过程中
+	CAMERA_IMGRDY	// 已完成曝光, 可以读出数据进入内存
 };
 
 /*!
@@ -139,7 +139,7 @@ protected:
 	threadptr thrdExpose_;			//< 线程: 监测曝光进度和结果
 
 	bool connected_;		//< 相机连接标志
-	CAMERA_STATE state_;	//< 工作状态
+	CAMERA_STATUS state_;	//< 工作状态
 	int wsensor_, hsensor_;	//< 探测器尺寸, 量纲: 像素
 	boost::shared_array<uint8_t> data_;	//< 图像数据存储区
 };

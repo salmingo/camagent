@@ -8,6 +8,7 @@ AM_INIT_AUTOMAKE()
 
 AC_PROG_CXX
 AC_PROG_CC
+CXXFLAGS="-std=c++0x"
 
 AC_CHECK_FUNCS([bzero ftruncate gettimeofday memset mkdir select socket strcasecmp strerror])
 AC_CHECK_HEADERS([fcntl.h limits.h netdb.h stdlib.h string.h strings.h sys/socket.h sys/vfs.h syslog.h unistd.h arpa/inet.h netinet/in.h])

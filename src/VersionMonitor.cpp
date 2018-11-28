@@ -14,7 +14,7 @@ bool VersionMonitor::Start() {// 启动服务
 	const CBSlot &slot = boost::bind(&VersionMonitor::on_terminate, this, _1, _2);
 	RegisterMessage(MSG_TERMINATE, slot);
 
-	return MessageQueue::Start("msgque_mhssvau", false);
+	return MessageQueue::Start("msgque_mhssvau");
 }
 
 // 注册回调函数

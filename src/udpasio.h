@@ -40,16 +40,16 @@ protected:
 
 protected:
 	// 成员变量
-	IOServiceKeep keep_;		//< 维持boost::asio::io_service对象有效
+	IOServiceKeep keep_;	//< 维持boost::asio::io_service对象有效
 	sockptr sock_;			//< UDP套接口
-	bool connected_;			//< 是否面向连接
+	bool connected_;		//< 是否面向连接
 	udp::endpoint remote_;	//< 对应远程端点地址
 	boost::condition_variable cvread_;	//< 阻塞读出时的条件变量
 
 	int bytercv_;			//< 收到的字节数
 	CallbackFunc cbconn_;	//< 连接回调函数
-	CallbackFunc cbrcv_;		//< 接收回调函数
-	CallbackFunc cbsnd_;		//< 发送回调函数
+	CallbackFunc cbrcv_;	//< 接收回调函数
+	CallbackFunc cbsnd_;	//< 发送回调函数
 	carray bufrcv_;			//< 接收缓存区
 	boost::mutex mtxrcv_;	//< 接收互斥锁
 	boost::mutex mtxsnd_;	//< 发送互斥锁

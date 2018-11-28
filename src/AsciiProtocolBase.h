@@ -21,6 +21,14 @@
 using std::string;
 
 //////////////////////////////////////////////////////////////////////////////
+/****************************************************************************/
+/* 系统标志定义: */
+// - 观测系统由group_id:unit_id构成唯一关键字
+// - 相机设备由group_id:unit_id:cam_id构成唯一关键字
+// - 关键字归属关系为: cam_id < unit_id < group_id
+// - 子关键字可以为空, 为空时代表通配符
+// - 子关键字不为空时, 父关键字不可为空
+/****************************************************************************/
 struct ascii_proto_base {
 	string type;	//< 协议类型
 	string utc;		//< 时间标签. 格式: YYYY-MM-DDThh:mm:ss
@@ -35,6 +43,21 @@ public:
 	void set_timetag() {
 		namespace pt = boost::posix_time;
 		utc = pt::to_iso_extended_string(pt::second_clock::universal_time());
+	}
+
+	void set_id(const string& _1) {
+		gid = _1;
+	}
+
+	void set_id(const string& _1, const string& _2) {
+		gid = _1;
+		uid = _2;
+	}
+
+	void set_id(const string& _1, const string& _2, const string& _3) {
+		gid = _1;
+		uid = _2;
+		cid = _3;
 	}
 };
 typedef boost::shared_ptr<ascii_proto_base> apbase;

@@ -5,18 +5,17 @@
 #ifndef FITS_HANDLER_H_
 #define FITS_HANDLER_H_
 
-#include <vector>
 #include <string>
 #include <longnam.h>
 #include <fitsio.h>
 
-struct fits_handler {// FITS图像操作接口
+struct FITSHandler {// FITS图像操作接口
 	fitsfile *fitsptr;	//< 基于cfitsio接口的文件操作接口
 	int width, height;	//< 图像宽度和高度
 	float exptime;		//< 曝光时间, 量纲: 秒
 
 public:
-	fits_handler() {
+	FITSHandler() {
 		fitsptr = NULL;
 		width = height = 0;
 		exptime = 0.0;
@@ -29,7 +28,7 @@ public:
 		return !status;
 	}
 
-	virtual ~fits_handler() {
+	virtual ~FITSHandler() {
 		close();
 	}
 
@@ -99,7 +98,5 @@ public:
 		return !status;
 	}
 };
-typedef fits_handler * HFITS;
-typedef std::vector<HFITS> HFITSVEC;
 
 #endif /* FITS_HANDLER_H_ */

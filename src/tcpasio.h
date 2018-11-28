@@ -1,5 +1,5 @@
 /*
- * @file tcpasio.h 定义文件, 基于boost::asio实现TCP通信接口
+ * @file tcpasio.h 声明文件, 基于boost::asio实现TCP通信接口
  * @version 0.2
  * @date 2017-10-01
  * - 基于v0.1优化重新实现
@@ -58,6 +58,8 @@ protected:
 	crcbuff crcsnd_;		//< 循环发送缓冲区
 	boost::mutex mtxrcv_;	//< 接收互斥锁
 	boost::mutex mtxsnd_;	//< 发送互斥锁
+
+	bool pause_rcv_;	//< 暂停接收
 
 public:
 	// 接口

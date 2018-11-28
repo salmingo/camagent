@@ -1,5 +1,5 @@
 /*
- * @file tcpasio.cpp 声明文件, 基于boost::asio实现TCP通信接口
+ * @file tcpasio.cpp 定义文件, 基于boost::asio实现TCP通信接口
  */
 
 #include <boost/lexical_cast.hpp>
@@ -18,6 +18,7 @@ TCPClient::TCPClient()
 	bytercv_ = 0;
 	bufrcv_.reset(new char[TCP_PACK_SIZE]);
 	usebuf_ = false;
+	pause_rcv_ = false;
 }
 
 TCPClient::~TCPClient() {
@@ -70,8 +71,8 @@ void TCPClient::UseBuffer(bool usebuf) {
 	if (usebuf_ != usebuf) {
 		usebuf_ = usebuf;
 		if (usebuf_) {
-			crcrcv_.set_capacity(TCP_PACK_SIZE * 10);
-			crcsnd_.set_capacity(TCP_PACK_SIZE * 10);
+			crcrcv_.set_capacity(TCP_PACK_SIZE * 100);
+			crcsnd_.set_capacity(TCP_PACK_SIZE * 100);
 		}
 		else {
 			crcrcv_.clear();
@@ -142,11 +143,20 @@ int TCPClient::Read(char* buff, const int len, const int from) {
 		int n(crcrcv_.size());
 		if (n > n0) n = n0;
 		for (j = from; j < n; ++i, ++j) buff[i] = crcrcv_[j];
-		if (i) crcrcv_.erase_begin(i);
+		if (i) {
+			crcrcv_.erase_begin(i);
+			if (pause_rcv_) {
+				pause_rcv_ = (crcrcv_.capacity() - crcrcv_.size()) < TCP_PACK_SIZE;
+				if (!pause_rcv_) start_read();
+			}
+		}
 	}
 	else {
 		int n = bytercv_ < n0 ? (bytercv_ - from) : len;
-		if (n > 0) memcpy(buff, bufrcv_.get() + from, n);
+		if (n > 0) {
+			memcpy(buff, bufrcv_.get() + from, n);
+			bytercv_ -= n;
+		}
 		i = n > 0 ? n : 0;
 	}
 	return i;
@@ -182,11 +192,12 @@ void TCPClient::handle_read(const boost::system::error_code& ec, int n) {
 		mutex_lock lock(mtxrcv_);
 		if (usebuf_) {
 			for(int i = 0; i < n; ++i) crcrcv_.push_back(bufrcv_[i]);
+			pause_rcv_ = (crcrcv_.capacity() - crcrcv_.size()) < TCP_PACK_SIZE;
 		}
 		else bytercv_ = n;
 	}
 	if (!cbrcv_.empty()) cbrcv_((const long) this, ec.value());
-	if (!ec) start_read();
+	if (!(ec || pause_rcv_)) start_read();
 }
 
 void TCPClient::handle_write(const boost::system::error_code& ec, int n) {

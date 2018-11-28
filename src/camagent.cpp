@@ -16,7 +16,7 @@
 using namespace std;
 
 //////////////////////////////////////////////////////////////////////////////
-GLog g_Log;
+GLog _gLog;
 
 int main(int argc, char **argv) {
 	if (argc >= 2) {// 处理命令行参数
@@ -40,20 +40,19 @@ int main(int argc, char **argv) {
 
 		if (!MakeItDaemon(ios)) return 1;
 		if (!isProcSingleton(gPIDPath)) {
-			g_Log.Write("%s is already running or failed to access PID file", DAEMON_NAME);
+			_gLog.Write("%s is already running or failed to access PID file", DAEMON_NAME);
 			return 2;
 		}
 
-		g_Log.Write("Try to launch %s %s %s as daemon", DAEMON_NAME, DAEMON_VERSION, DAEMON_AUTHORITY);
+		_gLog.Write("Try to launch %s %s %s as daemon", DAEMON_NAME, DAEMON_VERSION, DAEMON_AUTHORITY);
 		// 主程序入口
 		cameracs ccs(&ios);
-		if (ccs.Start()) {
-			g_Log.Write("Daemon goes running");
+		if (ccs.StartService()) {
+			_gLog.Write("Daemon goes running");
 			ios.run();
-			ccs.Stop();
-			g_Log.Write("Daemon stopped");
+			ccs.StopService();
 		}
-		else g_Log.Write(LOG_FAULT, NULL, "Fail to launch %s", DAEMON_NAME);
+		else _gLog.Write(LOG_FAULT, NULL, "Fail to launch %s", DAEMON_NAME);
 	}
 
 	return 0;

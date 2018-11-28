@@ -37,3 +37,34 @@ void CameraBase::Disconnect() {
 double CameraBase::SetCooler(double coolerset, bool onoff) {
 	return coolerset;
 }
+
+uint16_t CameraBase::SetReadPort(uint16_t index) {
+	return 0;
+}
+
+uint16_t CameraBase::SetReadRate(uint16_t index) {
+	return 0;
+}
+
+uint16_t CameraBase::SetGain(uint16_t index) {
+	return 0;
+}
+
+void CameraBase::SetROI(int &xbin, int &ybin, int &xstart, int &ystart, int &width, int &height) {
+}
+
+uint16_t CameraBase::SetADCOffset(uint16_t offset) {
+	return 0;
+}
+
+bool CameraBase::Expose(double duration, bool light) {
+	return false;
+}
+
+void CameraBase::AbortExpose() {
+
+}
+
+bool CameraBase::SoftwareReboot() {
+	return false;
+}

@@ -1,5 +1,5 @@
 /*
- * @file MessageQueue.h 定义文件, 基于boost::interprocess::ipc::message_queue封装消息队列
+ * @file MessageQueue.h 声明文件, 基于boost::interprocess::ipc::message_queue封装消息队列
  * @version 0.2
  * @date 2017-10-02
  * - 优化消息队列实现方式
@@ -26,7 +26,7 @@ protected:
 	};
 
 	struct MSG_UNIT {// 消息单元
-		long id;	//< 消息代码
+		long id;		//< 消息代码
 		long par1;	//< 参数(支持两个参数)
 		long par2;
 
@@ -51,7 +51,7 @@ protected:
 		}
 	};
 
-	typedef boost::signals2::signal<void (long, long)> CallbackFunc;	//< 消息响应函数类型
+	typedef boost::signals2::signal<void (const long, const long)> CallbackFunc;	//< 消息响应函数类型
 	typedef boost::shared_array<CallbackFunc> cbfarray;			//< 回调函数数组
 	typedef CallbackFunc::slot_type CBSlot;						//< 响应函数插槽
 	typedef boost::interprocess::message_queue message_queue;	//< 消息队列
@@ -90,13 +90,12 @@ public:
 	 */
 	void SendMessage(const long id, const long p1 = 0, const long p2 = 0);
 	/*!
-	 * @brief 创建/打开消息队列并启动监测/响应服务
-	 * @param name      消息队列名称
-	 * @param is_create 创建或打开消息队列
+	 * @brief 创建消息队列并启动监测/响应服务
+	 * @param name 消息队列名称
 	 * @return
 	 * 操作结果. false代表失败
 	 */
-	bool Start(const char* name, bool is_create = true);
+	bool Start(const char* name);
 	/*!
 	 * @brief 停止消息队列监测/响应服务, 并销毁消息队列
 	 */
