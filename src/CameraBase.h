@@ -143,5 +143,28 @@ protected:
 	int wsensor_, hsensor_;	//< 探测器尺寸, 量纲: 像素
 	boost::shared_array<uint8_t> data_;	//< 图像数据存储区
 };
+typedef boost::shared_ptr<CameraBase> cambase;
+
+/*!
+ * @brief 将CameraBase继承类的boost::shared_ptr型指针转换为cambase类型
+ * @param camera 相机控制接口指针
+ * @return
+ * cambase类型指针
+ */
+template <class T>
+cambase to_cambase(T camera) {
+	return boost::static_pointer_cast<CameraBase>(camera);
+}
+
+/*!
+ * @brief 将cambase类型指针转换为其继承类的boost::shared_ptr型指针
+ * @param camera 相机控制接口指针
+ * @return
+ * cambase继承类指针
+ */
+template <class T>
+boost::shared_ptr<T> from_cambase(cambase camera) {
+	return boost::static_pointer_cast<T>(camera);
+}
 
 #endif /* SRC_CAMERABASE_H_ */

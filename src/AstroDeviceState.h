@@ -56,10 +56,11 @@ enum IMAGE_TYPE {// 图像类型
 };
 
 enum EXPOSE_COMMAND {// 相机控制指令
-	EXPOSE_START = 1,	//< 开始曝光
-	EXPOSE_STOP,		//< 中止曝光
-	EXPOSE_PAUSE,		//< 暂停曝光
-	EXPOSE_RESUME		//< EXPOSE_START分支: 当处理暂停过程中收到开始曝光指令, 指令记录为RESUME
+	EXPOSE_INIT,	//< 初始指令, 不执行任何操作
+	EXPOSE_START,	//< 开始曝光
+	EXPOSE_STOP,	//< 中止曝光
+	EXPOSE_PAUSE,	//< 暂停曝光
+	EXPOSE_RESUME	//< EXPOSE_START分支: 当处理暂停过程中收到开始曝光指令, 指令记录为RESUME
 };
 
 enum CAMCTL_STATUS {// 相机工作状态

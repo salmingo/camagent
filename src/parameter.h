@@ -24,7 +24,7 @@ typedef vector<string> strvec;
 /*!
  * @struct 管理配置参数
  */
-struct config_parameter {
+struct Parameter {
 	/* 相机 */
 	string termType;	//< 终端类型
 	int    camType;		//< 相机型号
@@ -89,6 +89,7 @@ public:
 		/* 相机 */
 		ptree &camera = pt.add("Camera", "");
 		camera.add("TerminalType", termType = "JFoV");
+		camera.add("<xmlcomment>", "Camera Type#0: Simulator"  );
 		camera.add("<xmlcomment>", "Camera Type#1: Andor CCD"  );
 		camera.add("<xmlcomment>", "Camera Type#2: FLI CCD"    );
 		camera.add("<xmlcomment>", "Camera Type#3: Apogee CCD" );
