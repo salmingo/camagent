@@ -131,9 +131,15 @@ const char *AsciiProtocol::CompactRegister(apreg proto, int &n) {
 	string output;
 	compact_base(to_apbase(proto), output);
 
-	if (proto->result != INT_MIN) join_kv(output, "result",   proto->result);
 	if (proto->ostype != INT_MIN) join_kv(output, "ostype",   proto->ostype);
 
+	return output_compacted(output, n);
+}
+
+const char *AsciiProtocol::CompactRegister(int ostype, int &n) {
+	string output = APTYPE_REG;
+	output += " ";
+	join_kv(output, "ostype", ostype);
 	return output_compacted(output, n);
 }
 
@@ -442,23 +448,23 @@ const char *AsciiProtocol::CompactAppendPlan(apappplan proto, int &n) {
 		join_kv(output, "filter", tmp);
 	}
 
-	tmp = to_string(proto->expdur[0]);
+	tmp = std::to_string(proto->expdur[0]);
 	for (i = 1, size = proto->expdur.size(); i < size; ++i) {
-		tmp += "|" + to_string(proto->expdur[i]);
+		tmp += "|" + std::to_string(proto->expdur[i]);
 	}
 	join_kv(output, "expdur", tmp);
 
 	if ((size = proto->delay.size())) {
-		tmp = to_string(proto->delay[0]);
+		tmp = std::to_string(proto->delay[0]);
 		for (i = 1, size = proto->delay.size(); i < size; ++i) {
-			tmp += "|" + to_string(proto->delay[i]);
+			tmp += "|" + std::to_string(proto->delay[i]);
 		}
 		join_kv(output, "delay", tmp);
 	}
 
-	tmp = to_string(proto->frmcnt[0]);
+	tmp = std::to_string(proto->frmcnt[0]);
 	for (i = 1, size = proto->frmcnt.size(); i < size; ++i) {
-		tmp += "|" + to_string(proto->frmcnt[i]);
+		tmp += "|" + std::to_string(proto->frmcnt[i]);
 	}
 	join_kv(output, "frmcnt", tmp);
 
@@ -710,8 +716,7 @@ apbase AsciiProtocol::resolve_register(likv &kvs) {
 	for (likv::iterator it = kvs.begin(); it != kvs.end(); ++it) {// 遍历键值对
 		keyword = (*it).keyword;
 		// 识别关键字
-		if      (iequals(keyword, "ostype"))  proto->ostype = stoi((*it).value);
-		else if (iequals(keyword, "result"))  proto->result = stoi((*it).value);
+		if (iequals(keyword, "ostype"))  proto->ostype = std::stoi((*it).value);
 	}
 
 	return to_apbase(proto);
@@ -760,10 +765,10 @@ apbase AsciiProtocol::resolve_obss(likv &kvs) {
 	for (likv::iterator it = kvs.begin(); it != kvs.end(); ++it) {// 遍历键值对
 		keyword = (*it).keyword;
 		// 识别关键字
-		if      (iequals(keyword, "state"))   proto->state   = stoi((*it).value);
-		else if (iequals(keyword, "op_sn"))   proto->op_sn   = stoi((*it).value);
+		if      (iequals(keyword, "state"))   proto->state   = std::stoi((*it).value);
+		else if (iequals(keyword, "op_sn"))   proto->op_sn   = std::stoi((*it).value);
 		else if (iequals(keyword, "op_time")) proto->op_time = (*it).value;
-		else if (iequals(keyword, "mount"))   proto->mount   = stoi((*it).value);
+		else if (iequals(keyword, "mount"))   proto->mount   = std::stoi((*it).value);
 		else if (keyword.find(precid) == 0) {// 相机工作状态. 关键字 cam#xxx
 			ascii_proto_obss::camera_state cs;
 			cs.cid   = keyword.substr(nprecid);
@@ -787,7 +792,7 @@ apbase AsciiProtocol::resolve_homesync(likv &kvs) {
 	for (likv::iterator it = kvs.begin(); it != kvs.end(); ++it) {// 遍历键值对
 		keyword = (*it).keyword;
 		// 识别关键字
-		if      (iequals(keyword, "ra"))     proto->ra    = stod((*it).value);
+		if      (iequals(keyword, "ra"))     proto->ra    = std::stod((*it).value);
 		else if (iequals(keyword, "dec"))    proto->dc    = std::stod((*it).value);
 		else if (iequals(keyword, "epoch"))  proto->epoch = std::stod((*it).value);
 	}

@@ -5,33 +5,34 @@
 #include "CameraBase.h"
 
 CameraBase::CameraBase() {
-	connected_ = false;
-	state_ = CAMERA_ERROR;
-	wsensor_ = hsensor_ = 0;
+	nfptr_ = boost::make_shared<DeviceCameraInfo>();
 }
 
 CameraBase::~CameraBase() {
 }
 
+const CameraBase::NFDevCamPtr CameraBase::GetCameraInfo() {
+	return nfptr_;
+}
+
 bool CameraBase::IsConnected() {
-	return connected_;
+	return nfptr_->connected;
 }
 
 bool CameraBase::Connect() {
-	if (connected_) return true;
+	if (IsConnected()) return true;
 	if (!OpenCamera()) return false;
 
-	connected_ = true;
-	state_ = CAMERA_IDLE;
-
-	int n = (wsensor_ * hsensor_ * 2 + 15) & ~15;
-	data_.reset(new uint8_t[n]);
+	nfptr_->connected = true;
+	nfptr_->state = CAMERA_IDLE;
 
 	return true;
 }
 
 void CameraBase::Disconnect() {
+	if (IsConnected()) {
 
+	}
 }
 
 double CameraBase::SetCooler(double coolerset, bool onoff) {
@@ -67,4 +68,9 @@ void CameraBase::AbortExpose() {
 
 bool CameraBase::SoftwareReboot() {
 	return false;
+}
+
+void CameraBase::RegisterExposeProc(const CBSlot &slot) {
+	if (!exposeproc_.empty()) exposeproc_.disconnect_all_slots();
+	exposeproc_.connect(slot);
 }

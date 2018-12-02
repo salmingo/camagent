@@ -13,6 +13,9 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/signals2.hpp>
 #include <boost/thread.hpp>
+#include <string>
+
+using std::string;
 
 enum CAMERA_STATUS {// 相机工作状态
 	CAMERA_ERROR,	// 错误
@@ -21,20 +24,62 @@ enum CAMERA_STATUS {// 相机工作状态
 	CAMERA_IMGRDY	// 已完成曝光, 可以读出数据进入内存
 };
 
-/*!
- * @brief 声明曝光进度回调函数
- * @param <1> 曝光剩余时间, 量纲: 秒
- * @param <2> 曝光进度, 量纲: 百分比
- * @param <3> 图像数据状态, CAMERA_STATUS
- */
-typedef boost::signals2::signal<void (const double, const double, const int)> ExposeProcess;
-
 class CameraBase {
 public:
 	CameraBase();
 	virtual ~CameraBase();
 
 public:
+	/* 声明数据类型 */
+	/*!
+	 * @brief 声明曝光进度回调函数
+	 * @param <1> 曝光剩余时间, 量纲: 秒
+	 * @param <2> 曝光进度, 量纲: 百分比
+	 * @param <3> 图像数据状态, CAMERA_STATUS
+	 */
+	typedef boost::signals2::signal<void (const double, const double, const int)> ExposeProcess;
+	typedef ExposeProcess::slot_type CBSlot;
+	/*!
+	 * @struct DeviceCameraInfo 相机工作状态
+	 */
+	struct DeviceCameraInfo {
+		string			model;			//< 相机型号
+		string			serialno;		//< 序列号
+		int				sensorW;		//< 探测器宽度, 量纲: 像素
+		int				sensorH;		//< 探测器高度, 量纲: 像素
+		float			pixelX;			//< 单像素尺寸, 量纲: 微米
+		float			pixelY;			//< 单像素尺寸, 量纲: 微米
+		bool			coolerOn;		//< 启用制冷
+		float			coolerSet;		//< 探测器制冷温度, 量纲: 摄氏度
+		//<< EM CCD
+		bool			EMCCD;			//< 支持EM功能
+		bool			EMOn;			//< 启用EM功能
+		int				EMGainLow;		//< EM增益下限
+		int				EMGainHigh;		//< EM增益上限
+		int				EMGain;			//< EM增益挡位
+		//>> EM CCD
+		//<< 关键控制参数
+		int				iADChannel;		//< A/D转换挡位
+		int				iReadPort;		//< 读出端口挡位
+		int				iReadRate;		//< 读出速度挡位
+		int				iVSRate;		//< 行转移挡位
+		int				iGain;			//< 增益挡位
+
+		int				ADBitPixel;		//< A/D转换位数
+		string			ReadPort;		//< 读出端口
+		string			ReadRate;		//< 读出速度
+		float			VSRate;			//< 行转移速度
+		float			gain;			//< 增益, 量纲: e-/DU
+		//>> 关键控制参数
+		bool			connected;		//< 相机连接标志
+		CAMERA_STATUS	state;			//< 工作状态
+		float			expdur;			//< 曝光时间, 量纲: 秒
+		boost::shared_array<uint8_t> data_;	//< 图像数据存储区
+	};
+	typedef boost::shared_ptr<DeviceCameraInfo> NFDevCamPtr;
+
+public:
+	const NFDevCamPtr GetCameraInfo();
 	/*!
 	 * @brief 相机连接标志
 	 * @return
@@ -115,6 +160,11 @@ public:
 	 * 相机重启结果
 	 */
 	virtual bool SoftwareReboot();
+	/*!
+	 * @brief 注册曝光进度回调函数
+	 * @param slot 函数插槽
+	 */
+	void RegisterExposeProc(const CBSlot &slot);
 
 protected:
 	/* 纯虚函数, 继承类实现 */
@@ -135,13 +185,10 @@ protected:
 	typedef boost::unique_lock<boost::mutex> mutex_lock;
 
 protected:
+	NFDevCamPtr nfptr_;				//< 相机参数及工作状态
 	ExposeProcess exposeproc_;		//< 曝光进度回调函数
 	threadptr thrdExpose_;			//< 线程: 监测曝光进度和结果
 
-	bool connected_;		//< 相机连接标志
-	CAMERA_STATUS state_;	//< 工作状态
-	int wsensor_, hsensor_;	//< 探测器尺寸, 量纲: 像素
-	boost::shared_array<uint8_t> data_;	//< 图像数据存储区
 };
 typedef boost::shared_ptr<CameraBase> cambase;
 
