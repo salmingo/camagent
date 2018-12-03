@@ -76,7 +76,7 @@ const char *UDPSession::Read(int &n) {
 
 const char *UDPSession::BlockRead(int &n) {
 	mutex_lock lck(mtxrcv_);
-	boost::posix_time::milliseconds t(500);
+	boost::posix_time::milliseconds t(100);
 
 	cvread_.timed_wait(lck, t);
 	n = bytercv_;

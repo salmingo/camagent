@@ -96,10 +96,14 @@ PROGRAMS = $(bin_PROGRAMS)
 am_camagent_OBJECTS = daemon.$(OBJEXT) GLog.$(OBJEXT) \
 	IOServiceKeep.$(OBJEXT) MessageQueue.$(OBJEXT) \
 	NTPClient.$(OBJEXT) tcpasio.$(OBJEXT) udpasio.$(OBJEXT) \
-	apgSampleCmn.$(OBJEXT) cameracs.$(OBJEXT) camagent.$(OBJEXT)
+	VersionMonitor.$(OBJEXT) FilterCtrl.$(OBJEXT) \
+	FilterCtrlFLI.$(OBJEXT) CameraBase.$(OBJEXT) \
+	apgSampleCmn.$(OBJEXT) AsciiProtocol.$(OBJEXT) \
+	cameracs.$(OBJEXT) camagent.$(OBJEXT)
 camagent_OBJECTS = $(am_camagent_OBJECTS)
 am__DEPENDENCIES_1 =
-camagent_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+camagent_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 camagent_LINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) \
 	$(camagent_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_$(V))
@@ -158,12 +162,12 @@ am__define_uniq_tagged_files = \
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /media/psf/AllFiles/Volumes/Data/Workspace/camagent/missing aclocal-1.13
+ACLOCAL = ${SHELL} /home/lxm/workspace/camagent/missing aclocal-1.13
 AMTAR = $${TAR-tar}
 AM_DEFAULT_VERBOSITY = 1
-AUTOCONF = ${SHELL} /media/psf/AllFiles/Volumes/Data/Workspace/camagent/missing autoconf
-AUTOHEADER = ${SHELL} /media/psf/AllFiles/Volumes/Data/Workspace/camagent/missing autoheader
-AUTOMAKE = ${SHELL} /media/psf/AllFiles/Volumes/Data/Workspace/camagent/missing automake-1.13
+AUTOCONF = ${SHELL} /home/lxm/workspace/camagent/missing autoconf
+AUTOHEADER = ${SHELL} /home/lxm/workspace/camagent/missing autoheader
+AUTOMAKE = ${SHELL} /home/lxm/workspace/camagent/missing automake-1.13
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -172,7 +176,7 @@ CPP = gcc -E
 CPPFLAGS = 
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2
+CXXFLAGS = -std=c++0x
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -191,7 +195,7 @@ LDFLAGS =
 LIBOBJS = 
 LIBS = 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /media/psf/AllFiles/Volumes/Data/Workspace/camagent/missing makeinfo
+MAKEINFO = ${SHELL} /home/lxm/workspace/camagent/missing makeinfo
 MKDIR_P = /usr/bin/mkdir -p
 OBJEXT = o
 PACKAGE = camagent
@@ -206,10 +210,10 @@ SET_MAKE =
 SHELL = /bin/sh
 STRIP = 
 VERSION = 0.3
-abs_builddir = /media/psf/AllFiles/Volumes/Data/Workspace/camagent/src
-abs_srcdir = /media/psf/AllFiles/Volumes/Data/Workspace/camagent/src
-abs_top_builddir = /media/psf/AllFiles/Volumes/Data/Workspace/camagent
-abs_top_srcdir = /media/psf/AllFiles/Volumes/Data/Workspace/camagent
+abs_builddir = /home/lxm/workspace/camagent/src
+abs_srcdir = /home/lxm/workspace/camagent/src
+abs_top_builddir = /home/lxm/workspace/camagent
+abs_top_srcdir = /home/lxm/workspace/camagent
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 am__include = include
@@ -237,7 +241,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /media/psf/AllFiles/Volumes/Data/Workspace/camagent/install-sh
+install_sh = ${SHELL} /home/lxm/workspace/camagent/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -262,14 +266,20 @@ top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
 camagent_SOURCES = daemon.cpp GLog.cpp IOServiceKeep.cpp MessageQueue.cpp NTPClient.cpp tcpasio.cpp udpasio.cpp \
+				  VersionMonitor.cpp \
+				  FilterCtrl.cpp FilterCtrlFLI.cpp \
+				  CameraBase.cpp \
 				  apgSampleCmn.cpp \
+				  AsciiProtocol.cpp \
 				  cameracs.cpp camagent.cpp
 
 AM_CPPFLAGS = -I/usr/local/include/libapogee-3.0
 camagent_LDFLAGS = -L/usr/local/lib
 COMM_LIBS = -lpthread -lcurl -lm -lrt -lcfitsio -lxpa
 BOOST_LIBS = -lboost_system-mt -lboost_thread-mt -lboost_date_time-mt -lboost_filesystem-mt
-camagent_LDADD = ${COMM_LIBS} ${BOOST_LIBS}
+APOGEE_LIBS = -lapogee
+FILTER_LIBS = -lfli
+camagent_LDADD = ${COMM_LIBS} ${BOOST_LIBS} ${APOGEE_LIBS} ${FILTER_LIBS}
 all: all-am
 
 .SUFFIXES:
@@ -357,10 +367,15 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+include ./$(DEPDIR)/AsciiProtocol.Po
+include ./$(DEPDIR)/CameraBase.Po
+include ./$(DEPDIR)/FilterCtrl.Po
+include ./$(DEPDIR)/FilterCtrlFLI.Po
 include ./$(DEPDIR)/GLog.Po
 include ./$(DEPDIR)/IOServiceKeep.Po
 include ./$(DEPDIR)/MessageQueue.Po
 include ./$(DEPDIR)/NTPClient.Po
+include ./$(DEPDIR)/VersionMonitor.Po
 include ./$(DEPDIR)/apgSampleCmn.Po
 include ./$(DEPDIR)/camagent.Po
 include ./$(DEPDIR)/cameracs.Po

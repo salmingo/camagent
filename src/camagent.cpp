@@ -21,7 +21,7 @@ GLog _gLog;
 int main(int argc, char **argv) {
 	if (argc >= 2) {// 处理命令行参数
 		if (strcmp(argv[1], "-d") == 0) {
-			config_parameter param;
+			Parameter param;
 			param.Init("camagent.xml");
 		}
 		else {
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	else {// 常规工作模式
-		config_parameter param;
+		Parameter param;
 		param.Load(gConfigPath);
 		if (param.bShowImg) system("ds9&");
 		if (param.bUpdate)  system("mhssvau&");
