@@ -76,6 +76,12 @@ public:
 	 */
 	bool IsOpen();
 	/*!
+	 * @brief 查看套接字
+	 * @return
+	 * UDP套接字
+	 */
+	udp::socket &GetSocket();
+	/*!
 	 * @brief 读取已接收数据
 	 * @param n 数据长度, 量纲: 字节
 	 * @return

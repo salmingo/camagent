@@ -14,15 +14,18 @@
 #include "parameter.h"
 
 using namespace std;
+#include "udpasio.h"
 
 //////////////////////////////////////////////////////////////////////////////
-GLog _gLog;
+GLog _gLog(stdout);
 
 int main(int argc, char **argv) {
 	if (argc >= 2) {// 处理命令行参数
 		if (strcmp(argv[1], "-d") == 0) {
-			Parameter param;
-			param.Init("camagent.xml");
+//			Parameter param;
+//			param.Init("camagent.xml");
+			UdpPtr udp = makeudp_session();
+			_gLog.Write("port = %d", udp->GetSocket().local_endpoint().port());
 		}
 		else {
 			printf("Usage: camagent <-d>\n");
@@ -38,7 +41,7 @@ int main(int argc, char **argv) {
 		boost::asio::signal_set signals(ios, SIGINT, SIGTERM);  // interrupt signal
 		signals.async_wait(boost::bind(&boost::asio::io_service::stop, &ios));
 
-		if (!MakeItDaemon(ios)) return 1;
+//		if (!MakeItDaemon(ios)) return 1;
 		if (!isProcSingleton(gPIDPath)) {
 			_gLog.Write("%s is already running or failed to access PID file", DAEMON_NAME);
 			return 2;
@@ -51,6 +54,7 @@ int main(int argc, char **argv) {
 			_gLog.Write("Daemon goes running");
 			ios.run();
 			ccs.StopService();
+			_gLog.Write("Daemon stop running");
 		}
 		else _gLog.Write(LOG_FAULT, NULL, "Fail to launch %s", DAEMON_NAME);
 	}

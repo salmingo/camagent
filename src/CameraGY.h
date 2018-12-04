@@ -40,28 +40,109 @@ public:
 	virtual ~CameraGY();
 
 protected:
+	struct ChannelZone {// 区域
+		int x1, x2;		//< X坐标最小最大值
+		int y1, y2;		//< Y坐标最小最大值
+		int r, g, b;	//< RGB三通道数值
+		double gain;	//< ADU与偏置的比例
+		double mean, rms;	//< 统计结果
+
+	public:
+		ChannelZone() {
+			x1 = y1 = x2 = y2 = 0;
+			r = g = b = 512;
+			gain = 10.0;
+			mean = rms = 0.0;
+		}
+	};
+
+	struct GYChannel {// 定义GY相机通道
+		ChannelZone overscan[4];	//< 过扫区
+
+	public:
+		GYChannel() {
+			int w(30), h(2048), x, y;
+			overscan[0].x1 = x = 4136;
+			overscan[0].y1 = y = 20;
+			overscan[0].x2 = x + w;
+			overscan[0].y2 = y + h;
+
+			overscan[1].x1 = x + 30;
+			overscan[1].y1 = y;
+			overscan[1].x2 = x + w;
+			overscan[1].y2 = y + h;
+
+			overscan[2].x1 = x + 30;
+			overscan[2].y1 = y = 2068;
+			overscan[2].x2 = x + w;
+			overscan[2].y2 = y + h;
+
+			overscan[3].x1 = x;
+			overscan[3].y1 = y;
+			overscan[3].x2 = x + w;
+			overscan[3].y2 = y + h;
+		}
+	};
+
+protected:
 	/* 成员变量 */
-	const uint16_t portCamera_;	//< 相机UDP服务端口
 	const uint16_t portLocal_;	//< 本地UDP服务端口
+	const uint16_t portCamera_;	//< 相机UDP服务端口
 	const uint8_t  idLeader_;	//< 数据包标志: 引导
 	const uint8_t  idTrailer_;	//< 数据包标志: 结尾
 	const uint8_t  idPayload_;	//< 数据包标志: 数据
+	const uint32_t headsize_;	//< GWAC相机出厂定义数据包头长度
 
 	boost::mutex mtx_reg_;	//< 互斥锁: 寄存器
 
 	string camIP_;		//< 相机IP地址
-	UdpPtr udpcmd_;		//< UDP连接: 控制指令
-	UdpPtr udpdata_;	//< UDP连接: 数据
+	uint32_t expdur_;	//< 曝光时间, 量纲: 微秒
+	uint32_t shtrmode_;	//< 快门模式. 0: Normal; 1: AlwaysOpen; 2: AlwaysClose
+	uint32_t gain_;		//< 增益. 0: 1x; 1: 1.5x; 2: 2x. x: e-/DU
+
+	/* 定义: 图像数据包 */
+	boost::condition_variable cv_imgrdy_;	//< 事件: 完成图像据读出
+	int64_t		tmdata_;	//< 时间戳: 接收图形数据包
+	/*！
+	 * 图像数据包定义1(相机发送数据包):
+	 * - 相机通过UDP连接(udpdata_)将数字化的图像数据发送给控制机
+	 * - 图像数据有效长度为byteimg_, 即width*height*2
+	 * - 图像数据被分为多个数据包, 每个数据包由包头和包数据组成
+	 * - 数据包头包含: 20字节IP头+8字节UDP头+headsize_(==8, 自定义)字节头
+	 * - 最后一个数据包多出64字节校验信息
+	 * - 数据包长度为packsize_ = MTU - 20 - 8 - 8
+	 * - UDP数据传输中可能出现的问题: 丢包、错位、阻塞
+	 * 图像数据包定义2(程序缓存数据包):
+	 * - 图像数据被分为多个数据包, 缓存在packbuf_中
+	 * - 每个数据包包含包头和包数据, 包头4字节、记录包数据长度
+	 */
+	uint32_t	byteimg_;	//< 图像数据长度, 量纲: 字节
+	uint32_t	bytercd_;	//< 已接收图像数据长度, 量纲: 字节
+	uint32_t	packcnt_;	//< 图像数据包数量, 对应图像数据长度
+	uint32_t	packsize_;	//< 单个数据包长度, 量纲: 字节
+	uint16_t	idFrame_;	//< 图像帧编号
+	uint32_t	idPack_;	//< 数据包编号, 起始位置: 1
+	boost::shared_array<uint8_t> packflag_;	//< 数据包接收标志
 
 	/* 定义: 控制指令 */
 	uint16_t msgcnt_;	//< 指令帧序列号
+	UdpPtr udpcmd_;		//< UDP连接: 控制指令
+	UdpPtr udpdata_;	//< UDP连接: 数据
+
+	/* 线程 */
+	threadptr thrdhb_;		//< 线程: 心跳机制
+	threadptr thrdread_;	//< 线程: 读出图像数据
+	threadptr thrdcal_;		//< 线程: 执行标校流程
+	boost::condition_variable cv_waitread_;	//< 事件: 等待完成图像数据读出
 
 protected:
 	/* 基类定义的虚函数 */
 	/*!
 	 * @brief 设置相机IP地址
+	 * @return
+	 * 操作结果
 	 */
-	void SetIP(string const ip, string const mask, string const gw);
+	bool SetIP(string const ip, string const mask, string const gw);
 	/*!
 	 * @brief 软重启相机
 	 * @return
@@ -147,6 +228,14 @@ protected:
 protected:
 	// 成员函数
 	/*!
+	 * @brief 查看与相机IP在同一网段的本机IP地址
+	 * @return
+	 * 主机字节排序方式的本机地址
+	 * @note
+	 * 返回值0表示无效
+	 */
+	uint32_t get_hostaddr();
+	/*!
 	 * @brief 计算帧头序号
 	 * @return
 	 * 帧序号
@@ -170,6 +259,80 @@ protected:
 	 * 操作失败抛出异常
 	 */
 	void reg_read(uint32_t addr, uint32_t &val);
+	/*!
+	 * @brief 回调函数, 处理来自相机的数据信息
+	 * @param udp UDP连接指针
+	 * @param len 收到的数据长度, 量纲: 字节
+	 */
+	void receive_data(const long udp, const long len);
+	/*!
+	 * @brief 申请相机重传数据包
+	 * @param iPack0 起始帧编号
+	 * @param iPack1 截止帧编号
+	 */
+	void re_transmit(uint32_t iPack0, uint32_t iPack1);
+	void re_transmit();
+	/*!
+	 * @brief 更新网络配置参数
+	 * @param addr  地址
+	 * @param vstr  新的网络地址/掩码/网关
+	 * @return
+	 * 操作结果
+	 */
+	bool update_network(const uint32_t addr, const char *vstr);
+	/*!
+	 * @brief 线程: 与相机之间的心跳机制
+	 */
+	void thread_heartbeat();
+	/*!
+	 * @brief 线程: 监测数据读出异常
+	 */
+	void thread_readout();
+	/*!
+	 * @brief 线程: 执行偏置电压标校流程
+	 */
+	void thread_calibrate(uint16_t offset);
+
+protected:
+	/* 偏置电压自动调制 */
+	/*!
+	 * @brief 为标校流程启动曝光
+	 */
+	bool takeimage_bias(GYChannel &ch);
+	/*!
+	 * @brief 统计过扫区
+	 * @param ch     过扫区定义
+	 * @param offset 调制目标
+	 * @return
+	 * 是否满足调校结果
+	 */
+	bool stat_overscan(GYChannel &ch, uint16_t offset);
+	/*!
+	 * @brief 从控制器中加载偏置电压参数
+	 */
+	bool load_preamp_offset(GYChannel &ch);
+	/*!
+	 * @brief 计算期望偏置参数
+	 */
+	void calc_preamp_offset(GYChannel &ch, uint16_t offset);
+	/*!
+	 * @brief 临时更改偏置电压参数
+	 */
+	bool apply_preamp_offset(GYChannel &ch);
+	/*!
+	 * @brief 临时更改偏置电压参数
+	 * @param channel  通道编号
+	 * @param color    颜色编号
+	 * @param offset   偏置参数
+	 * @return
+	 * 更改结果
+	 */
+	bool apply_preamp_offset(int channel, int color, int offset);
+	/*!
+	 * @brief 永久更改偏置电压参数
+	 * @param offset 数据存储区
+	 */
+	bool save_preamp_offset(GYChannel &ch);
 };
 
 #endif /* SRC_CAMERAGY_H_ */

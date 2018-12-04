@@ -38,7 +38,10 @@ bool CameraBase::Connect() {
 void CameraBase::Disconnect() {
 	if (IsConnected()) {
 		nfptr_->connected = false;
-		if (nfptr_->state >= CAMERA_EXPOSE) AbortExpose();
+		if (nfptr_->state >= CAMERA_EXPOSE) {
+			AbortExpose();
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
+		}
 		exit_thread(thrdExpose_);
 		exit_thread(thrdCycle_);
 		SetCooler(0.0, false);
@@ -110,6 +113,36 @@ bool CameraBase::SetADCOffset(uint16_t offset) {
 }
 
 bool CameraBase::SetROI(int &xb, int &yb, int &x, int &y, int &w, int &h) {
+	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
+	/* 检查: 参数有效性 */
+	int x1, y1, res;
+	if (xb <= 0 || xb > 16) xb = 1;
+	if (yb <= 0 || yb > 16) yb = 1;
+	if (x <= 0 || x > nfptr_->sensorW) x = 1;
+	else if ((res = (x - 1) % xb)) x -= xb;
+	if (y <= 0 || y > nfptr_->sensorH) y = 1;
+	else if ((res = (y - 1) % yb)) y -= yb;
+	x1 = x + w - 1;
+	y1 = y + h - 1;
+	if (x1 <= 0 || (x1 - x + 1) / xb < 1 || x1 > nfptr_->sensorW) x1 = nfptr_->sensorW / xb * xb;
+	else if ((res = x1 % xb)) x1 -= xb;
+	if (y1 <= 0 || (y1 - y + 1) / yb < 1 || y1 > nfptr_->sensorH) y1 = nfptr_->sensorH / yb * yb;
+	else if ((res = y1 % yb)) y1 -= yb;
+	w = x1 - x + 1;
+	h = y1 - y + 1;
+	if (w == 0) { x = 1, w = nfptr_->sensorW / xb * xb; }
+	if (h == 0) { y = 1, h = nfptr_->sensorH / yb * yb; }
+
+	/* 设置ROI */
+	update_roi(xb, yb, x, y, w, h);
+	nfptr_->roi.binX = xb;
+	nfptr_->roi.binY = yb;
+	nfptr_->roi.startX = x;
+	nfptr_->roi.startY = y;
+	nfptr_->roi.width  = w;
+	nfptr_->roi.height = h;
+	nfptr_->AllocImageBuffer();
+
 	return false;
 }
 
@@ -136,8 +169,8 @@ void CameraBase::RegisterExposeProc(const CBSlot &slot) {
 	exproc_.connect(slot);
 }
 
-void CameraBase::SetIP(string const ip, string const mask, string const gw) {
-	// 空, 由继承类实现
+bool CameraBase::SetIP(string const ip, string const mask, string const gw) {
+	return (nfptr_->connected && nfptr_->state == CAMERA_IDLE);
 }
 
 void CameraBase::thread_cycle() {
@@ -174,7 +207,7 @@ void CameraBase::thread_expose() {
 		 */
 		if (stat == CAMERA_IMGRDY) {
 			nfptr_->EndExpose();
-			exproc_(0.0, 100.000001, (int) CAMERA_EXPOSE);
+			exproc_(0.0, 100.000001, (int) CAMERA_IMGRDY);
 			stat = download_image();
 		}
 		exproc_(0.0, 100.001, (int) stat);

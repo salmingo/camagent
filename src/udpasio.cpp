@@ -51,6 +51,10 @@ bool UDPSession::IsOpen() {
 	return (sock_.unique() && sock_->is_open());
 }
 
+udp::socket &UDPSession::GetSocket() {
+	return *sock_;
+}
+
 void UDPSession::RegisterConnect(const CBSlot &slot) {
 	if (!cbconn_.empty()) cbconn_.disconnect_all_slots();
 	cbconn_.connect(slot);

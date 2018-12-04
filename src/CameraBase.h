@@ -298,8 +298,10 @@ public:
 	bool SetROI(int &xb, int &yb, int &x, int &y, int &w, int &h);
 	/*!
 	 * @brief 设置相机IP地址
+	 * @return
+	 * 操作结果
 	 */
-	virtual void SetIP(string const ip, string const mask, string const gw);
+	virtual bool SetIP(string const ip, string const mask, string const gw);
 	/*!
 	 * @brief 软重启相机
 	 * @return
