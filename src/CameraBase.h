@@ -35,7 +35,7 @@ enum CAMERA_STATUS {// 相机工作状态
  * @param <3> 图像数据状态, CAMERA_STATUS
  */
 typedef boost::signals2::signal<void (const double, const double, const int)> ExposeProcess;
-typedef ExposeProcess::slot_type CBSlot;
+typedef ExposeProcess::slot_type ExpProcCBSlot;
 
 /*!
  * @struct ROI 定义ROI区
@@ -325,7 +325,7 @@ public:
 	 * @brief 注册曝光进度回调函数
 	 * @param slot 函数插槽
 	 */
-	void RegisterExposeProc(const CBSlot &slot);
+	void RegisterExposeProc(const ExpProcCBSlot &slot);
 
 protected:
 	/*!

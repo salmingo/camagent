@@ -30,9 +30,9 @@ bool CameraAndorCCD::SoftwareReboot() {
 }
 
 bool CameraAndorCCD::open_camera() {
-	if (Initialize(andor_dir) == DRV_SUCCESS) {
-
-	}
+//	if (Initialize(andor_dir) == DRV_SUCCESS) {
+//
+//	}
 	return false;
 }
 

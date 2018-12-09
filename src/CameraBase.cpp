@@ -164,7 +164,7 @@ bool CameraBase::SoftwareReboot() {
 	return false;
 }
 
-void CameraBase::RegisterExposeProc(const CBSlot &slot) {
+void CameraBase::RegisterExposeProc(const ExpProcCBSlot &slot) {
 	if (!exproc_.empty()) exproc_.disconnect_all_slots();
 	exproc_.connect(slot);
 }

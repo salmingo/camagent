@@ -98,7 +98,8 @@ am_camagent_OBJECTS = daemon.$(OBJEXT) GLog.$(OBJEXT) \
 	NTPClient.$(OBJEXT) tcpasio.$(OBJEXT) udpasio.$(OBJEXT) \
 	VersionMonitor.$(OBJEXT) FilterCtrl.$(OBJEXT) \
 	FilterCtrlFLI.$(OBJEXT) CameraBase.$(OBJEXT) \
-	apgSampleCmn.$(OBJEXT) CameraAndorCCD.$(OBJEXT) \
+	apgSampleCmn.$(OBJEXT) CameraApogee.$(OBJEXT) \
+	CameraAndorCCD.$(OBJEXT) CameraGY.$(OBJEXT) \
 	AsciiProtocol.$(OBJEXT) cameracs.$(OBJEXT) camagent.$(OBJEXT)
 camagent_OBJECTS = $(am_camagent_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -270,15 +271,16 @@ camagent_SOURCES = daemon.cpp GLog.cpp IOServiceKeep.cpp MessageQueue.cpp NTPCli
 				  VersionMonitor.cpp \
 				  FilterCtrl.cpp FilterCtrlFLI.cpp \
 				  CameraBase.cpp \
-				  apgSampleCmn.cpp CameraApogee \
+				  apgSampleCmn.cpp CameraApogee.cpp \
 				  CameraAndorCCD.cpp \
+				  CameraGY.cpp \
 				  AsciiProtocol.cpp \
 				  cameracs.cpp camagent.cpp
 
 AM_CPPFLAGS = -I/usr/local/include/libapogee-3.0
 camagent_LDFLAGS = -L/usr/local/lib
 COMM_LIBS = -lpthread -lcurl -lm -lrt -lcfitsio -lxpa
-BOOST_LIBS = -lboost_system-mt -lboost_thread-mt -lboost_date_time-mt -lboost_filesystem-mt
+BOOST_LIBS = -lboost_system-mt -lboost_thread-mt -lboost_date_time-mt -lboost_chrono-mt -lboost_filesystem-mt
 APOGEE_LIBS = -lapogee
 ANDOR_LIBS = -landor
 FILTER_LIBS = -lfli
@@ -372,7 +374,9 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/AsciiProtocol.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraAndorCCD.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraApogee.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraBase.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraGY.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/FilterCtrl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/FilterCtrlFLI.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GLog.Po@am__quote@

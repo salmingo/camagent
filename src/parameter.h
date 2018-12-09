@@ -16,10 +16,9 @@
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/format.hpp>
-using namespace std;
+
 using std::string;
 using std::vector;
-typedef vector<string> strvec;
 
 /*!
  * @struct 管理配置参数
@@ -29,8 +28,10 @@ struct Parameter {
 	string termType;	//< 终端类型
 	int    camType;		//< 相机型号
 	string camIP;		//< 相机IP地址
+	int    ADChannel;	//< A/D通道
 	int    readport;	//< 读出端口
 	int    readrate;	//< 读出速度
+	int    VSRate;		//< 行转移速度
 	int    gain;		//< 增益
 	bool   bEM;			//< 启用EM
 	int    gainEM;		//< EM增益
@@ -39,7 +40,7 @@ struct Parameter {
 	/* 滤光片 */
 	bool   bFilter;		//< 是否支持滤光片
 	int    nFilter;		//< 滤光片控制器插槽数量
-	strvec sFilter;		//< 各槽位滤光片通用名称
+	vector<string> sFilter;		//< 各槽位滤光片通用名称
 	/* 本地文件存储格式 */
 	string pathLocal;	//< 文件存储根路径
 	bool   bFreeDisk;	//< 是否自动清理磁盘空间
@@ -89,7 +90,6 @@ public:
 		/* 相机 */
 		ptree &camera = pt.add("Camera", "");
 		camera.add("TerminalType", termType = "JFoV");
-		camera.add("<xmlcomment>", "Camera Type#0: Simulator"  );
 		camera.add("<xmlcomment>", "Camera Type#1: Andor CCD"  );
 		camera.add("<xmlcomment>", "Camera Type#2: FLI CCD"    );
 		camera.add("<xmlcomment>", "Camera Type#3: Apogee CCD" );
@@ -97,8 +97,10 @@ public:
 		camera.add("<xmlcomment>", "Camera Type#5: GWAC-GY CCD");
 		camera.add("CameraType",   camType  = 5);
 		camera.add("IPAddress",    camIP    = "172.28.4.11");
+		camera.add("Setting.<xmlattr>.ADChannel", ADChannel = 0);
 		camera.add("Setting.<xmlattr>.Readport", readport  = 0);
 		camera.add("Setting.<xmlattr>.Readrate", readrate  = 0);
+		camera.add("Setting.<xmlattr>.VSRate",   VSRate  = 0);
 		camera.add("Setting.<xmlattr>.Gain",     gain      = 1);
 		camera.add("CoolerTarget",        coolerset = -40.0);
 		camera.add("ReverseSaturation",   tsaturate = 500.0);
@@ -174,8 +176,10 @@ public:
 		termType = pt.get("Camera.TerminalType", "JFoV");
 		camType  = pt.get("Camera.CameraType",   5);
 		camIP    = pt.get("Camera.IPAddress",    "172.28.4.11");
+		ADChannel= pt.get("Camera.Setting.<xmlattr>.ADChannel", 0);
 		readport = pt.get("Camera.Setting.<xmlattr>.Readport",  1);
 		readrate = pt.get("Camera.Setting.<xmlattr>.Readrate",  2);
+		VSRate   = pt.get("Camera.Setting.<xmlattr>.VSRate",    0);
 		gain     = pt.get("Camera.Setting.<xmlattr>.Gain",      0);
 		coolerset = pt.get("Camera.CoolerTarget",         -20.0);
 		tsaturate = pt.get("Camera.ReverseSaturation",    600.0);

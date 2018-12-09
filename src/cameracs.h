@@ -43,22 +43,28 @@ protected:
 protected:
 	/* 成员变量 */
 //////////////////////////////////////////////////////////////////////////////
+	int ostype_;	//< 观测系统类型
 	boost::asio::io_service* ios_;	//< IO服务
 	boost::shared_ptr<VersionMonitor> vermon_;	//< 版本更新监视
-	boost::shared_ptr<Parameter> param_;	//< 配置参数
-	boost::shared_ptr<FilterCtrl> filter_;	//< 滤光片控制接口
-	NTPPtr ntp_;		//< NTP服务器控制接口
-	cambase camera_;	//< 相机控制接口
+	boost::shared_ptr<Parameter> param_;		//< 配置参数
+	boost::shared_ptr<FilterCtrl> filterctl_;	//< 滤光片控制接口
+	cambase camctl_;		//< 相机控制接口
 	EXPOSE_COMMAND cmdexp_;	//< 曝光指令
+	boost::condition_variable cv_statchanged_;	//< 事件: 工作状态发生变化
+	NTPPtr   ntp_;		//< NTP服务器控制接口
 	apcam    nfcam_;	//< 相机工作状态
-	apobject nfobj_;	//< 观测目标信息
+	apobject nfobj_;	//< 观测目标及曝光参数
+	vector<string> filters_;	//< 曝光参数中的滤光片集合
 //////////////////////////////////////////////////////////////////////////////
 	TcpCPtr tcptr_;		//< 网络连接接口
 	AscProtoPtr ascproto_;	//< 通信协议接口
+	boost::shared_array<char> bufrcv_;	//< 网络信息接收缓存区
 //////////////////////////////////////////////////////////////////////////////
-	threadptr thrd_gtoaes_;	//< 线程: 尝试连接总控服务器
-	threadptr thrd_camera_;	//< 线程: 尝试连接相机
-	threadptr thrd_filter_;	//< 线程: 尝试连接滤光片控制器
+	threadptr thrd_gtoaes_;		//< 线程: 尝试连接总控服务器
+	threadptr thrd_camera_;		//< 线程: 尝试连接相机
+	threadptr thrd_filter_;		//< 线程: 尝试连接滤光片控制器
+	threadptr thrd_upload_;		//< 线程: 向gtoaes服务器上传工作状态
+	threadptr thrd_freedisk_;	//< 线程: 检查并清理磁盘
 
 public:
 	/*!
@@ -106,6 +112,33 @@ protected:
 	 * @param ec     错误代码
 	 */
 	void handle_receive_gtoaes(const long client, const long ec);
+	/*!
+	 * @brief 从观测计划中解析滤光片集合
+	 */
+	void resolve_filter();
+	/*!
+	 * @brief 检查曝光序列是否结束
+	 * @return
+	 * 如果结束则返回true, 否则返回false继续曝光
+	 */
+	bool exposure_over();
+	/*!
+	 * @brief 回调函数, 处理曝光进度
+	 * @param 剩余曝光时间
+	 * @param 曝光进度, 百分比
+	 * @param 曝光状态
+	 */
+	void expose_process(const double left, const double percent, const int state);
+	/*!
+	 * @brief 处理服务器发送的通信协议
+	 * @param proto 通信协议
+	 */
+	void process_protocol(apbase proto);
+	/*!
+	 * @brief 控制改变曝光状态
+	 * @param cmd 曝光指令
+	 */
+	void command_expose(EXPOSE_COMMAND cmd);
 
 //////////////////////////////////////////////////////////////////////////////
 protected:
@@ -121,6 +154,10 @@ protected:
 	 * @brief 线程: 尝试连接滤光片控制器
 	 */
 	void thread_tryconnect_filter();
+	/*!
+	 * @brief 线程: 向gtoaes服务器上传工作状态信息
+	 */
+	void thread_upload();
 
 //////////////////////////////////////////////////////////////////////////////
 protected:
