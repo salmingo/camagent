@@ -40,6 +40,26 @@ protected:
 	};
 
 //////////////////////////////////////////////////////////////////////////////
+protected:
+	/* 成员变量 */
+//////////////////////////////////////////////////////////////////////////////
+	boost::asio::io_service* ios_;	//< IO服务
+	boost::shared_ptr<VersionMonitor> vermon_;	//< 版本更新监视
+	boost::shared_ptr<Parameter> param_;	//< 配置参数
+	boost::shared_ptr<FilterCtrl> filter_;	//< 滤光片控制接口
+	NTPPtr ntp_;		//< NTP服务器控制接口
+	cambase camera_;	//< 相机控制接口
+	EXPOSE_COMMAND cmdexp_;	//< 曝光指令
+	apcam    nfcam_;	//< 相机工作状态
+	apobject nfobj_;	//< 观测目标信息
+//////////////////////////////////////////////////////////////////////////////
+	TcpCPtr tcptr_;		//< 网络连接接口
+	AscProtoPtr ascproto_;	//< 通信协议接口
+//////////////////////////////////////////////////////////////////////////////
+	threadptr thrd_gtoaes_;	//< 线程: 尝试连接总控服务器
+	threadptr thrd_camera_;	//< 线程: 尝试连接相机
+	threadptr thrd_filter_;	//< 线程: 尝试连接滤光片控制器
+
 public:
 	/*!
 	 * @brief 启动服务
@@ -140,27 +160,6 @@ protected:
 	void on_complete_expose(const long, const long);
 	void on_abort_expose(const long, const long);
 	void on_fail_expose(const long, const long);
-
-//////////////////////////////////////////////////////////////////////////////
-protected:
-	/* 成员变量 */
-//////////////////////////////////////////////////////////////////////////////
-	boost::asio::io_service* ios_;	//< IO服务
-	boost::shared_ptr<VersionMonitor> vermon_;	//< 版本更新监视
-	boost::shared_ptr<Parameter> param_;	//< 配置参数
-	boost::shared_ptr<FilterCtrl> filter_;	//< 滤光片控制接口
-	NTPPtr ntp_;		//< NTP服务器控制接口
-	cambase camera_;	//< 相机控制接口
-	EXPOSE_COMMAND cmdexp_;	//< 曝光指令
-	apcam    nfcam_;	//< 相机工作状态
-	apobject nfobj_;	//< 观测目标信息
-//////////////////////////////////////////////////////////////////////////////
-	TcpCPtr tcptr_;		//< 网络连接接口
-	AscProtoPtr ascproto_;	//< 通信协议接口
-//////////////////////////////////////////////////////////////////////////////
-	threadptr thrd_gtoaes_;	//< 线程: 尝试连接总控服务器
-	threadptr thrd_camera_;	//< 线程: 尝试连接相机
-	threadptr thrd_filter_;	//< 线程: 尝试连接滤光片控制器
 };
 
 #endif /* SRC_CAMERACS_H_ */

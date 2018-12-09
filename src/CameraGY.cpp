@@ -17,6 +17,10 @@ CameraGY::CameraGY(string const camIP)
 	, headsize_(8) {
 	camIP_     = camIP;
 	msgcnt_    = 0;
+	nfptr_->model  = "GWAC, E2V CCD";
+	nfptr_->pixelX = 12.0;
+	nfptr_->pixelY = 12.0;
+
 	// 初始化通信接口
 	const UDPSession::CBSlot &slot = boost::bind(&CameraGY::receive_data, this, _1, _2);
 	udpdata_ = makeudp_session(portLocal_);
@@ -109,7 +113,6 @@ bool CameraGY::open_camera() {
 }
 
 void CameraGY::close_camera() {
-	exit_thread(thrdcal_);
 	exit_thread(thrdhb_);
 	exit_thread(thrdread_);
 }
@@ -168,9 +171,6 @@ void CameraGY::update_gain(uint16_t &index, float &gain) {
 }
 
 void CameraGY::update_adoffset(uint16_t &index) {
-	if (!thrdcal_.unique()) {
-		thrdcal_.reset(new boost::thread(boost::bind(&CameraGY::thread_calibrate, this, index)));
-	}
 }
 
 bool CameraGY::start_expose(float duration, bool light) {
@@ -382,12 +382,6 @@ void CameraGY::thread_heartbeat() {
 	while(fail < limit) {
 		boost::this_thread::sleep_for(period);
 
-		// 等待偏置电压调校流程结束
-		if (thrdcal_.unique()) {
-			if (thrdcal_->try_join_for(boost::chrono::seconds(1))) {
-				thrdcal_.reset();
-			}
-		}
 		// 心跳机制
 		try {
 			reg_read(0x0A00, val);
@@ -435,153 +429,5 @@ void CameraGY::thread_readout() {
 				}
 			}
 		}
-	}
-}
-
-void CameraGY::thread_calibrate(uint16_t offset) {
-	GYChannel chn0, chn1;
-
-	if (!load_preamp_offset(chn0)     // 读取当前参数
-			|| !takeimage_bias(chn0)) // 采集本底, 统计过扫区
-		return;
-	if (stat_overscan(chn0, offset)) return; // 已达到调校结果
-}
-
-bool CameraGY::takeimage_bias(GYChannel &ch) {
-	CAMERA_STATUS &state = nfptr_->state;
-	if (!Expose(0.0, false)) return false;
-
-	boost::chrono::seconds wait(1);
-	while (state >= CAMERA_EXPOSE) boost::this_thread::sleep_for(wait);
-	if (state == CAMERA_ERROR) return false;
-
-	return true;
-}
-
-bool CameraGY::stat_overscan(GYChannel &ch, uint16_t offset) {
-	int x1, y1, x2, y2;
-	int n;
-	int w(nfptr_->sensorW);
-	int x, y;
-	double sum, sq, t, mean;
-	uint16_t *data = (uint16_t*) nfptr_->data.get();
-	uint16_t *ptr;
-	ChannelZone *zone;
-
-	for (int i = 0; i < 4; ++i) {
-		zone = &(ch.overscan[i]);
-		x1 = zone->x1;
-		y1 = zone->y1;
-		x2 = zone->x2;
-		y2 = zone->y2;
-		n  = (x2 - x1) * (y2 - y1);
-
-		for (y = y1, ptr = data + y1 * w, sum = sq = 0.0; y < y2; ++y, ptr += w) {
-			for (x = x1; x < x2; ++x) {
-				sum += (t = ptr[x]);
-				sq += (t * t);
-			}
-		}
-		zone->mean = mean = sum / n;
-		zone->rms  = sqrt((sq - mean * sum) / n);
-
-		if (fabs(mean - offset) > zone->rms) return false;
-	}
-	return true;
-}
-
-bool CameraGY::load_preamp_offset(GYChannel &ch) {
-	try {
-		uint32_t val;
-		ChannelZone *zone = &ch.overscan[0];
-
-		reg_write(0x10010, 1);
-		reg_read(0x11000, val);   zone[0].r = int(val);
-		reg_read(0x11004, val);   zone[0].g = int(val);
-		reg_read(0x11008, val);   zone[0].b = int(val);
-		reg_read(0x1100C, val);   zone[1].r = int(val);
-		reg_read(0x11010, val);   zone[1].g = int(val);
-		reg_read(0x11014, val);   zone[1].b = int(val);
-
-		reg_write(0x10010, 2);
-		reg_read(0x11000, val);   zone[2].r = int(val);
-		reg_read(0x11004, val);   zone[2].g = int(val);
-		reg_read(0x11008, val);   zone[2].b = int(val);
-		reg_read(0x1100C, val);   zone[3].r = int(val);
-		reg_read(0x11010, val);   zone[3].g = int(val);
-		reg_read(0x11014, val);   zone[3].b = int(val);
-		return true;
-	}
-	catch(std::runtime_error &ex) {
-		nfptr_->errmsg  = ex.what();
-		return false;
-	}
-}
-
-void CameraGY::calc_preamp_offset(GYChannel &ch, uint16_t offset) {
-
-}
-
-bool CameraGY::apply_preamp_offset(GYChannel &ch) {
-	ChannelZone *zone = &ch.overscan[0];
-	for (int i = 0; i < 4; ++i) {
-		if (!apply_preamp_offset(i, 0, zone[i].r)) return false;
-		if (!apply_preamp_offset(i, 1, zone[i].g)) return false;
-		if (!apply_preamp_offset(i, 2, zone[i].b)) return false;
-	}
-
-	return true;
-}
-
-bool CameraGY::apply_preamp_offset(int channel, int color, int offset) {
-	try {
-		uint32_t val, val0, addr;
-
-		val0 = color == 0 ? 0x05 : (color == 1 ? 0x06 : 0x07);
-		val  = offset >= 0 ? offset : 0x0100 - offset;
-		val += (val0 << 12);
-		reg_write(0x00010010, channel < 2 ? 1 : 2); // 切换通道
-		reg_write(0x00010000, (channel == 0 || channel == 2) ? 0x0010 : 0x0011);
-		reg_write(0x00010004, val); // 更新偏置
-		return true;
-	}
-	catch(std::runtime_error &ex) {
-		nfptr_->errmsg  = ex.what();
-		return false;
-	}
-}
-
-bool CameraGY::save_preamp_offset(GYChannel &ch) {
-	try {
-		uint32_t addr;
-		ChannelZone *zone = &ch.overscan[0];
-
-		reg_write(0x0001FFF0, 0x1A3C57C9); // begin
-
-		// 写入各通道偏置值
-		reg_write(0x00010010, 1); // 上半区域
-		addr = 0x11000; reg_write(addr, zone[0].r);
-		addr += 4;      reg_write(addr, zone[0].g);
-		addr += 4;      reg_write(addr, zone[0].b);
-		addr += 4;      reg_write(addr, zone[1].r);
-		addr += 4;      reg_write(addr, zone[1].g);
-		addr += 4;      reg_write(addr, zone[1].b);
-
-		reg_write(0x00010010, 2); // 下半区域
-		addr = 0x11000; reg_write(addr, zone[2].r);
-		addr += 4;      reg_write(addr, zone[2].g);
-		addr += 4;      reg_write(addr, zone[2].b);
-		addr += 4;      reg_write(addr, zone[3].r);
-		addr += 4;      reg_write(addr, zone[3].g);
-		addr += 4;      reg_write(addr, zone[3].b);
-
-		reg_write(0x00013000, 0x1); // end
-		reg_write(0x0001FFF0, 0x0);
-
-		return true;
-	}
-	catch(std::runtime_error &ex) {
-		nfptr_->errmsg  = ex.what();
-		return false;
 	}
 }

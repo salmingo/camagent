@@ -37,7 +37,6 @@ bool CameraBase::Connect() {
 
 void CameraBase::Disconnect() {
 	if (IsConnected()) {
-		nfptr_->connected = false;
 		if (nfptr_->state >= CAMERA_EXPOSE) {
 			AbortExpose();
 			boost::this_thread::sleep_for(boost::chrono::milliseconds(50));
@@ -46,6 +45,7 @@ void CameraBase::Disconnect() {
 		exit_thread(thrdCycle_);
 		SetCooler(0.0, false);
 		close_camera();
+		nfptr_->connected = false;
 	}
 }
 

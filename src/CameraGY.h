@@ -40,51 +40,6 @@ public:
 	virtual ~CameraGY();
 
 protected:
-	struct ChannelZone {// 区域
-		int x1, x2;		//< X坐标最小最大值
-		int y1, y2;		//< Y坐标最小最大值
-		int r, g, b;	//< RGB三通道数值
-		double gain;	//< ADU与偏置的比例
-		double mean, rms;	//< 统计结果
-
-	public:
-		ChannelZone() {
-			x1 = y1 = x2 = y2 = 0;
-			r = g = b = 512;
-			gain = 10.0;
-			mean = rms = 0.0;
-		}
-	};
-
-	struct GYChannel {// 定义GY相机通道
-		ChannelZone overscan[4];	//< 过扫区
-
-	public:
-		GYChannel() {
-			int w(30), h(2048), x, y;
-			overscan[0].x1 = x = 4136;
-			overscan[0].y1 = y = 20;
-			overscan[0].x2 = x + w;
-			overscan[0].y2 = y + h;
-
-			overscan[1].x1 = x + 30;
-			overscan[1].y1 = y;
-			overscan[1].x2 = x + w;
-			overscan[1].y2 = y + h;
-
-			overscan[2].x1 = x + 30;
-			overscan[2].y1 = y = 2068;
-			overscan[2].x2 = x + w;
-			overscan[2].y2 = y + h;
-
-			overscan[3].x1 = x;
-			overscan[3].y1 = y;
-			overscan[3].x2 = x + w;
-			overscan[3].y2 = y + h;
-		}
-	};
-
-protected:
 	/* 成员变量 */
 	const uint16_t portLocal_;	//< 本地UDP服务端口
 	const uint16_t portCamera_;	//< 相机UDP服务端口
@@ -132,7 +87,6 @@ protected:
 	/* 线程 */
 	threadptr thrdhb_;		//< 线程: 心跳机制
 	threadptr thrdread_;	//< 线程: 读出图像数据
-	threadptr thrdcal_;		//< 线程: 执行标校流程
 	boost::condition_variable cv_waitread_;	//< 事件: 等待完成图像数据读出
 
 protected:
@@ -288,51 +242,6 @@ protected:
 	 * @brief 线程: 监测数据读出异常
 	 */
 	void thread_readout();
-	/*!
-	 * @brief 线程: 执行偏置电压标校流程
-	 */
-	void thread_calibrate(uint16_t offset);
-
-protected:
-	/* 偏置电压自动调制 */
-	/*!
-	 * @brief 为标校流程启动曝光
-	 */
-	bool takeimage_bias(GYChannel &ch);
-	/*!
-	 * @brief 统计过扫区
-	 * @param ch     过扫区定义
-	 * @param offset 调制目标
-	 * @return
-	 * 是否满足调校结果
-	 */
-	bool stat_overscan(GYChannel &ch, uint16_t offset);
-	/*!
-	 * @brief 从控制器中加载偏置电压参数
-	 */
-	bool load_preamp_offset(GYChannel &ch);
-	/*!
-	 * @brief 计算期望偏置参数
-	 */
-	void calc_preamp_offset(GYChannel &ch, uint16_t offset);
-	/*!
-	 * @brief 临时更改偏置电压参数
-	 */
-	bool apply_preamp_offset(GYChannel &ch);
-	/*!
-	 * @brief 临时更改偏置电压参数
-	 * @param channel  通道编号
-	 * @param color    颜色编号
-	 * @param offset   偏置参数
-	 * @return
-	 * 更改结果
-	 */
-	bool apply_preamp_offset(int channel, int color, int offset);
-	/*!
-	 * @brief 永久更改偏置电压参数
-	 * @param offset 数据存储区
-	 */
-	bool save_preamp_offset(GYChannel &ch);
 };
 
 #endif /* SRC_CAMERAGY_H_ */

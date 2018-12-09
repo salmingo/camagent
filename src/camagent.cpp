@@ -13,19 +13,14 @@
 #include "cameracs.h"
 #include "parameter.h"
 
-using namespace std;
-#include "udpasio.h"
-
 //////////////////////////////////////////////////////////////////////////////
 GLog _gLog(stdout);
 
 int main(int argc, char **argv) {
 	if (argc >= 2) {// 处理命令行参数
 		if (strcmp(argv[1], "-d") == 0) {
-//			Parameter param;
-//			param.Init("camagent.xml");
-			UdpPtr udp = makeudp_session();
-			_gLog.Write("port = %d", udp->GetSocket().local_endpoint().port());
+			Parameter param;
+			param.Init("camagent.xml");
 		}
 		else {
 			printf("Usage: camagent <-d>\n");

@@ -35,7 +35,6 @@ bool FilterCtrlFLI::Disconnect() {
 bool FilterCtrlFLI::FindHome() {
 	if (!FilterCtrl::FindHome()) return false;
 	FLIHomeDevice(devID_);
-	sleep(5);
 	return true;
 }
 

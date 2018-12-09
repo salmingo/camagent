@@ -126,5 +126,6 @@ protected:
 	boost::shared_array<int> default_;	// 每层转轮的缺省滤光片位置
 	boost::shared_array<int> position_;	// 每层转轮的滤光片位置
 };
+typedef boost::shared_ptr<FilterCtrl> FilterCtrlPtr;
 
 #endif /* SRC_FILTERCTRL_H_ */

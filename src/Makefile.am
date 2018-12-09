@@ -3,7 +3,8 @@ camagent_SOURCES= daemon.cpp GLog.cpp IOServiceKeep.cpp MessageQueue.cpp NTPClie
 				  VersionMonitor.cpp \
 				  FilterCtrl.cpp FilterCtrlFLI.cpp \
 				  CameraBase.cpp \
-				  apgSampleCmn.cpp \
+				  apgSampleCmn.cpp CameraApogee \
+				  CameraAndorCCD.cpp \
 				  AsciiProtocol.cpp \
 				  cameracs.cpp camagent.cpp
 
@@ -12,5 +13,6 @@ camagent_LDFLAGS=-L/usr/local/lib
 COMM_LIBS=-lpthread -lcurl -lm -lrt -lcfitsio -lxpa
 BOOST_LIBS=-lboost_system-mt -lboost_thread-mt -lboost_date_time-mt -lboost_filesystem-mt
 APOGEE_LIBS=-lapogee
+ANDOR_LIBS=-landor
 FILTER_LIBS=-lfli
-camagent_LDADD=${COMM_LIBS} ${BOOST_LIBS} ${APOGEE_LIBS} ${FILTER_LIBS}
+camagent_LDADD=${COMM_LIBS} ${BOOST_LIBS} ${APOGEE_LIBS} ${ANDOR_LIBS} ${FILTER_LIBS}

@@ -5,12 +5,13 @@
 #include "globaldef.h"
 #include "GLog.h"
 #include "cameracs.h"
-
 #include "FilterCtrlFLI.h"
 
 cameracs::cameracs(boost::asio::io_service* ios) {
 	ios_ = ios;
 	cmdexp_ = EXPOSE_INIT;
+	param_  = boost::make_shared<Parameter>();
+	param_->Load(gConfigPath);
 }
 
 cameracs::~cameracs() {
@@ -18,7 +19,12 @@ cameracs::~cameracs() {
 
 bool cameracs::StartService() {
 	/* 注册消息并尝试启动消息队列 */
-	/* 尝试连接相机 */
+	string name = "msgque_";
+	name += DAEMON_NAME;
+	register_messages();
+	if (!Start(name.c_str())) return false;
+	if (!connect_camera()) return false;
+
 	/* 启动其它服务 */
 	/* 启动定时器 */
 
@@ -46,12 +52,10 @@ bool cameracs::connect_filter() {
 }
 
 void cameracs::connect_gtoaes() {
-	const TCPClient::CBSlot &slot1 = boost::bind(&cameracs::handle_connect_gtoaes, this, _1, _2);
-	const TCPClient::CBSlot &slot2 = boost::bind(&cameracs::handle_receive_gtoaes, this, _1, _2);
+	const TCPClient::CBSlot &slot = boost::bind(&cameracs::handle_connect_gtoaes, this, _1, _2);
 
 	tcptr_ = maketcp_client();
-	tcptr_->RegisterConnect(slot1);
-	tcptr_->RegisterRead(slot2);
+	tcptr_->RegisterConnect(slot);
 	tcptr_->AsyncConnect(param_->hostGC, param_->portGC);
 }
 
@@ -131,7 +135,6 @@ void cameracs::on_connect_gtoaes(const long ec, const long) {
 		interrupt_thread(thrd_gtoaes_);
 		// 注册回调函数
 		const TCPClient::CBSlot &slot = boost::bind(&cameracs::handle_receive_gtoaes, this, _1, _2);
-		tcptr_ = maketcp_client();
 		tcptr_->RegisterRead(slot);
 		// 注册相机
 		_gLog.Write("register camera as [%s:%s:%s]",

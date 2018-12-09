@@ -158,7 +158,8 @@ public:
 	 */
 	void AllocImageBuffer() {
 		int n = ADBitPixel / 8;
-		if (n * 8 < ADBitPixel) n += 2;
+		if (n * 8 < ADBitPixel) ++n;
+		if (n > 1 && (n % 2)) ++n;
 		n = n * roi.Width() * roi.Height();
 		if (n > 0) data.reset(new uint8_t[n]);
 	}
