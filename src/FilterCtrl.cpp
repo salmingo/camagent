@@ -51,7 +51,7 @@ bool FilterCtrl::SetLayerCount(int n) {
 bool FilterCtrl::SetSlotCount(int n) {
 	if (n > 0 && n != nSlot_) {
 		nSlot_ = n;
-		n*= nLayer_;
+		n *= nLayer_;
 		if (n) filters_.reset(new string[n]);
 		return true;
 	}

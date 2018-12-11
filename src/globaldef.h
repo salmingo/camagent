@@ -18,7 +18,7 @@ const char gLogDir[]    = "/var/log/camagent";
 const char gLogPrefix[] = "camagent_";
 
 // 软件配置文件
-const char gConfigPath[] = "/usr/etc/camagent.xml";
+const char gConfigPath[] = "/usr/local/etc/camagent.xml";
 
 // 文件锁位置
 const char gPIDPath[] = "/var/run/camagent.pid";

@@ -2,6 +2,7 @@
  * @file cameracs.cpp 相机控制软件声明文件, 实现天文相机工作流程
  */
 #include <boost/make_shared.hpp>
+#include <boost/filesystem.hpp>
 #include <string.h>
 #include "globaldef.h"
 #include "GLog.h"
@@ -33,21 +34,30 @@ bool cameracs::StartService() {
 	name += DAEMON_NAME;
 	register_messages();
 	if (!Start(name.c_str())) return false;
-	if (!connect_camera()) return false;
-	connect_filter();
+	if (!connect_camera())    return false;
+	if (!connect_filter())    return false;
 	if (param_->bNTP) {
 		ntp_ = make_ntp(param_->hostNTP.c_str(), 123, param_->maxClockDiff);
 		ntp_->EnableAutoSynch(false);
 	}
-	// 启动线程
+	connect_gtoaes(); // 连接服务器
+	thrd_freedisk_.reset(new boost::thread(boost::bind(&cameracs::thread_freedisk, this)));
 
 	return true;
 }
 
 void cameracs::StopService() {
-	/* 销毁消息队列 */
-	/* 释放定时器 */
-	/* 断开与相机连接 */
+	Stop();
+	// 中断线程
+	interrupt_thread(thrd_freedisk_);
+	interrupt_thread(thrd_upload_);
+	interrupt_thread(thrd_filter_);
+	interrupt_thread(thrd_camera_);
+	interrupt_thread(thrd_gtoaes_);
+
+	// 断开与设备的连接
+	if (filterctl_.unique()) filterctl_->Disconnect();
+	if (camctl_.unique()) camctl_->Disconnect();
 }
 
 void cameracs::MonitorVersion() {
@@ -113,10 +123,25 @@ bool cameracs::connect_camera() {
 }
 
 bool cameracs::connect_filter() {
-	if (param_->bFilter) {
-
+	if (!param_->bFilter) return true;
+	// 仅支持FLI滤光片控制器. Dec 10, 2018
+	boost::shared_ptr<FilterCtrlFLI> fli = boost::make_shared<FilterCtrlFLI>();
+	if (!fli->Connect()) {
+		_gLog.Write(LOG_FAULT, NULL, "failed to connect filter controller");
 	}
-	return true;
+	else {
+		_gLog.Write("successfully connect to filter controller <%s>",
+				fli->GetDeviceName().c_str());
+		int n(param_->nFilter);
+		fli->SetLayerCount(1);
+		fli->SetSlotCount(n);
+		for (int i = 0; i < n; ++i) {
+			fli->SetFilterName(0, i, param_->sFilter[i]);
+		}
+	}
+
+	filterctl_ = boost::static_pointer_cast<FilterCtrl>(fli);
+	return filterctl_->IsConnected();
 }
 
 void cameracs::connect_gtoaes() {
@@ -206,7 +231,7 @@ void cameracs::process_protocol(apbase proto) {
 	if (iequals(type, APTYPE_OBJECT)) {// 观测目标及曝光参数
 		if (!nfobj_.unique()) {
 			nfobj_ = from_apbase<ascii_proto_object>(proto);
-			_gLog.Write("New sequence: [name=%s, imgtype=%s, expdur=%.3f, frmcnt=%d",
+			_gLog.Write("New sequence: [ name=%s, imgtype=%s, expdur=%.3f, frmcnt=%d ]",
 					nfobj_->objname.c_str(), nfobj_->imgtype.c_str(), nfobj_->expdur, nfobj_->frmcnt);
 			*nfcam_ = *nfobj_;
 			resolve_filter();
@@ -220,7 +245,7 @@ void cameracs::process_protocol(apbase proto) {
 	}
 	else if (iequals(type, APTYPE_TELE)) {// 望远镜指向位置. 平场变更位置
 		if (nfobj_.unique()) {
-			shared_ptr<ascii_proto_telescope> tele = from_apbase<ascii_proto_telescope>(proto);
+			boost::shared_ptr<ascii_proto_telescope> tele = from_apbase<ascii_proto_telescope>(proto);
 			nfobj_->ra  = tele->ra;
 			nfobj_->dec = tele->dec;
 		}
@@ -242,19 +267,21 @@ void cameracs::process_protocol(apbase proto) {
 
 void cameracs::command_expose(EXPOSE_COMMAND cmd) {
 	if (cmdexp_ != cmd && nfobj_.unique()) {
-		if (cmd == EXPOSE_START || cmd == EXPOSE_RESUME) {
-			if (filterctl_.unique() && nfobj_->ifrm == nfcam_->ifrm) {// 检查并重定位滤光片
+		bool is_valid(true);
 
-			}
+		CAMCTL_STATUS state = CAMCTL_STATUS(nfcam_->state);
+		if ((cmd == EXPOSE_RESUME && (state == CAMCTL_PAUSE || state >= CAMCTL_WAIT_SYNC))
+				|| (cmd == EXPOSE_START && state == CAMCTL_IDLE)) {// 开始或恢复曝光
+			PostMessage(MSG_PREPARE_EXPOSE);
 		}
-		else if (cmd == EXPOSE_PAUSE) {
+		else if (cmd == EXPOSE_PAUSE) {// 暂停曝光
 
 		}
-		else if (cmd == EXPOSE_STOP) {
+		else if (cmd == EXPOSE_STOP) {// 中止曝光
 
 		}
-
-		cmdexp_ = cmd;
+		else is_valid = false;
+		if (is_valid) cmdexp_ = cmd;
 	}
 }
 
@@ -264,7 +291,6 @@ void cameracs::thread_tryconnect_gtoaes() {
 
 	while(1) {
 		boost::this_thread::sleep_for(boost::chrono::minutes(++count));
-		_gLog.Write("try to connect gtoaes");
 		if (count > 5) count = 5;
 		connect_gtoaes();
 	}
@@ -276,7 +302,6 @@ void cameracs::thread_tryconnect_camera() {
 
 	do {
 		boost::this_thread::sleep_for(boost::chrono::minutes(++count));
-		_gLog.Write("try to connect camera");
 		if (count > 5) count = 5;
 		success = connect_camera();
 	} while(!success);
@@ -289,21 +314,69 @@ void cameracs::thread_tryconnect_filter() {
 
 	do {
 		boost::this_thread::sleep_for(boost::chrono::minutes(++count));
-		_gLog.Write("try to connect filter controller");
 		if (count > 5) count = 5;
 		success = connect_filter();
 	} while(!success);
 	if (success) PostMessage(MSG_CONNECT_FILTER);
 }
 
+/*
+ * 向服务器上传相机工作状态
+ * - 定时周期: 10秒
+ * - 当工作状态发生变化时
+ */
 void cameracs::thread_upload() {
 	boost::chrono::seconds period(10);
 	boost::mutex mtx;
 	mutex_lock lck(mtx);
+	int n;
+	const char *s;
 
 	while(1) {
 		cv_statchanged_.wait_for(lck, period);
+
+		if (camctl_.unique()) nfcam_->coolget = camctl_->GetCameraInfo()->coolerGet;
+		s = ascproto_->CompactCamera(nfcam_, n);
+		tcptr_->Write(s, n);
 	}
+}
+
+/*
+ * 定时检查清理磁盘空间
+ */
+void cameracs::thread_freedisk() {
+	while (1) {
+		free_disk();
+		boost::this_thread::sleep_for(boost::chrono::seconds(next_noon()));
+	}
+}
+
+void cameracs::free_disk() {
+	namespace fs = boost::filesystem;
+	int days3 = 3 * 86400; // 删除3日前数据
+	ptime now = second_clock::local_time(), tmlast;
+	fs::path path = param_->pathLocal;
+	fs::space_info space = fs::space(path);
+
+	// 当磁盘容量不足时, 删除3日前数据
+	if ((space.available >> 30) <= param_->minFreeDisk) {
+		_gLog.Write("Cleaning local storage <%s>", path.c_str());
+		fs::directory_iterator itend = fs::directory_iterator();
+		for (fs::directory_iterator x = fs::directory_iterator(path); x != itend; ++x) {
+			tmlast = from_time_t(fs::last_write_time(x->path()));
+			if ((now - tmlast).total_seconds() > days3) fs::remove_all(x->path());
+		}
+
+		space = fs::space(path);
+		_gLog.Write("free capacity is %d GB", space.available >> 30);
+	}
+}
+
+long cameracs::next_noon() {
+	ptime now(second_clock::local_time());
+	ptime noon(now.date(), hours(12));
+	long secs = (noon - now).total_seconds();
+	return secs < 10 ? secs + 86400 : secs;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -352,6 +425,9 @@ void cameracs::on_connect_gtoaes(const long ec, const long) {
 		// 启动线程
 		thrd_upload_.reset(new boost::thread(boost::bind(&cameracs::thread_upload, this)));
 	}
+	else if (!thrd_gtoaes_.unique()) {
+		thrd_gtoaes_.reset(new boost::thread(boost::bind(&cameracs::thread_tryconnect_gtoaes, this)));
+	}
 }
 
 void cameracs::on_receive_gtoaes(const long, const long) {
@@ -376,31 +452,34 @@ void cameracs::on_receive_gtoaes(const long, const long) {
 			if (proto.use_count()) process_protocol(proto);
 			else {
 				_gLog.Write(LOG_FAULT, "cameracs::on_receive_gtoaes",
-						"illegal protocol. received: %s", bufrcv_.get());
+						"received illegal protocol: %s", bufrcv_.get());
 				tcptr_->Close();
 			}
 		}
 	}
-
 }
 
 void cameracs::on_close_gtoaes(const long, const long) {
-	_gLog.Write(LOG_WARN, NULL, "connection with gtoaes was broken");
+	_gLog.Write(LOG_WARN, NULL, "connection with server was broken");
 	tcptr_->Close();
+	interrupt_thread(thrd_upload_);
 	thrd_gtoaes_.reset(new boost::thread(boost::bind(&cameracs::thread_tryconnect_gtoaes, this)));
 }
 
 void cameracs::on_connect_camera(const long, const long) {
-	_gLog.Write("re-connection to camera succeed");
+	_gLog.Write("successfully re-connection to camera");
 	interrupt_thread(thrd_camera_);
 }
 
 void cameracs::on_connect_filter(const long, const long) {
-	_gLog.Write("re-connection to filter controller succeed");
+	_gLog.Write("successfully re-connection to filter controller");
 	interrupt_thread(thrd_filter_);
 }
 
 void cameracs::on_prepare_expose(const long, const long) {
+	if (filterctl_.unique() && (!nfcam_->ifrm || nfobj_->ifrm == nfcam_->ifrm)) {// 检查并重定位滤光片
+		filterctl_->Goto(nfcam_->filter);
+	}
 
 }
 

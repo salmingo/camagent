@@ -13,6 +13,7 @@
 #define SRC_CAMERAANDORCCD_H_
 
 #include <atmcdLXd.h>
+#include <boost/property_tree/ptree.hpp>
 #include "CameraBase.h"
 
 class CameraAndorCCD: public CameraBase {
@@ -22,6 +23,7 @@ public:
 
 protected:
 	// 成员变量
+	boost::property_tree::ptree ptree_;	//< 相机参数访问接口. 相机参数存入XML配置文件中
 
 protected:
 	/* 基类定义的虚函数 */
@@ -112,6 +114,17 @@ protected:
 	 * - CAMERA_ERROR:  相机错误
 	 */
 	CAMERA_STATUS download_image();
+
+protected:
+	/* Ancod CCD 相机工作参数 */
+	/*!
+	 * @brief 从文件中加载相机参数
+	 */
+	void load_parameters();
+	/*!
+	 * @brief 从相机ROM中读取相机参数并写入文件
+	 */
+	void init_parameters();
 };
 
 #endif /* SRC_CAMERAANDORCCD_H_ */

@@ -158,6 +158,22 @@ protected:
 	 * @brief 线程: 向gtoaes服务器上传工作状态信息
 	 */
 	void thread_upload();
+	/*!
+	 * @brief 线程: 定时检查并清理磁盘空间
+	 */
+	void thread_freedisk();
+	/*!
+	 * @brief 线程: 定时检查相机温度
+	 */
+	void thread_cycle();
+	/*!
+	 * @brief 检查磁盘可用空间并清理磁盘
+	 */
+	void free_disk();
+	/*!
+	 * @brief 计算当前时间距离下一个中午的秒数
+	 */
+	long next_noon();
 
 //////////////////////////////////////////////////////////////////////////////
 protected:

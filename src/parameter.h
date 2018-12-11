@@ -45,13 +45,6 @@ struct Parameter {
 	string pathLocal;	//< 文件存储根路径
 	bool   bFreeDisk;	//< 是否自动清理磁盘空间
 	int    minFreeDisk;	//< 最小可用磁盘空间, 量纲: GB
-	/*!
-	 * @member pathstyle 文件路径及文件名格式
-	 * 1: GWAC格式
-	 * 2: GFT格式
-	 * 3: 50BiN格式
-	 */
-	int    pathstyle;
 	/* 图像显示标志 */
 	bool   bShowImg;
 	/* 自动平场参数 */
@@ -85,7 +78,7 @@ public:
 	 */
 	void Init(const string &filepath) {
 		using boost::property_tree::ptree;
-		boost::property_tree::ptree pt;	//< 参数树型结构
+		ptree pt;	//< 参数树型结构
 		/* 逐项生成参数 */
 		/* 相机 */
 		ptree &camera = pt.add("Camera", "");
@@ -127,10 +120,6 @@ public:
 		fileloc.add("PathRoot", pathLocal = "/data");
 		fileloc.add("AutoFreeDisk.<xmlattr>.Enable",       bFreeDisk   = true);
 		fileloc.add("AutoFreeDisk.<xmlattr>.MinFreeDisk",  minFreeDisk = 100);
-		fileloc.add("FilenameStyle", pathstyle = 1);
-		fileloc.add("<xmlcomment>", "Filename Style#1: GWAC" );
-		fileloc.add("<xmlcomment>", "Filename Style#2: GFT"  );
-		fileloc.add("<xmlcomment>", "Filename Style#3: 50BiN");
 		/* 图像显示标志 */
 		pt.add("ShowImage.<xmlattr>.Enable", bShowImg = false);
 		/* 自动平场参数 */
@@ -167,7 +156,6 @@ public:
 	 * @param filepath 文件存储路径
 	 */
 	void Load(const string &filepath) {
-		using boost::property_tree::ptree;
 		boost::property_tree::ptree pt;	//< 参数树型结构
 
 		read_xml(filepath, pt, boost::property_tree::xml_parser::trim_whitespace);
@@ -199,7 +187,6 @@ public:
 		pathLocal = pt.get("LocalStorage.PathRoot", "/data");
 		bFreeDisk = pt.get("LocalStorage.AutoFreeDisk.<xmlattr>.Enable",       true);
 		minFreeDisk = pt.get("LocalStorage.AutoFreeDisk.<xmlattr>.MinFreeDisk", 100);
-		pathstyle   = pt.get("LocalStorage.FilenameStyle", 1);
 		/* 图像显示标志 */
 		bShowImg = pt.get("ShowImage.<xmlattr>.Enable", false);
 		/* 自动平场参数 */
