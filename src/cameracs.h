@@ -43,7 +43,10 @@ protected:
 protected:
 	/* 成员变量 */
 //////////////////////////////////////////////////////////////////////////////
-	int ostype_;	//< 观测系统类型
+	OBSS_TYPE ostype_;	//< 观测系统类型
+	double lgt_;	//< 地理经度, 量纲: 角度, 东经为正
+	double lat_;	//< 地理纬度, 量纲: 角度, 北纬为正
+	double alt_;	//< 海拔, 量纲: 米
 	boost::asio::io_service* ios_;	//< IO服务
 	boost::shared_ptr<VersionMonitor> vermon_;	//< 版本更新监视
 	boost::shared_ptr<Parameter> param_;		//< 配置参数

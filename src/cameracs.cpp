@@ -16,7 +16,10 @@ using namespace std;
 using namespace boost;
 
 cameracs::cameracs(boost::asio::io_service* ios) {
-	ostype_ = 1;
+	ostype_ = OBSST_UNKNOWN;
+	lgt_    = 120.0;
+	lat_    = 40.0;
+	alt_    = 1000.0;
 	ios_    = ios;
 	cmdexp_ = EXPOSE_INIT;
 }
@@ -34,8 +37,8 @@ bool cameracs::StartService() {
 	name += DAEMON_NAME;
 	register_messages();
 	if (!Start(name.c_str())) return false;
-	if (!connect_camera())    return false;
-	if (!connect_filter())    return false;
+//	if (!connect_camera())    return false;
+//	if (!connect_filter())    return false;
 	if (param_->bNTP) {
 		ntp_ = make_ntp(param_->hostNTP.c_str(), 123, param_->maxClockDiff);
 		ntp_->EnableAutoSynch(false);
@@ -260,8 +263,12 @@ void cameracs::process_protocol(apbase proto) {
 	else if (iequals(type, APTYPE_MCOVER)) {// 变更镜盖状态
 		nfcam_->mcstate = from_apbase<ascii_proto_mcover>(proto)->value;
 	}
-	else if (iequals(type, APTYPE_REG)) {// 注册结果. 反馈观测系统类型
-		ostype_ = from_apbase<ascii_proto_reg>(proto)->ostype;
+	else if (iequals(type, APTYPE_TERM)) {// 注册结果. 反馈观测系统类型
+		apterm term = from_apbase<ascii_proto_term>(proto);
+		ostype_ = OBSS_TYPE(term->ostype);
+		lgt_    = term->lgt;
+		lat_    = term->lat;
+		alt_    = term->alt;
 	}
 }
 
