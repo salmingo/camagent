@@ -4,6 +4,8 @@
 #include <boost/make_shared.hpp>
 #include <boost/filesystem.hpp>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "globaldef.h"
 #include "GLog.h"
 #include "cameracs.h"
@@ -37,14 +39,14 @@ bool cameracs::StartService() {
 	name += DAEMON_NAME;
 	register_messages();
 	if (!Start(name.c_str())) return false;
-//	if (!connect_camera())    return false;
-//	if (!connect_filter())    return false;
+	if (!connect_camera())    return false;
+	if (!connect_filter())    return false;
 	if (param_->bNTP) {
 		ntp_ = make_ntp(param_->hostNTP.c_str(), 123, param_->maxClockDiff);
 		ntp_->EnableAutoSynch(false);
 	}
 	connect_gtoaes(); // 连接服务器
-	thrd_freedisk_.reset(new boost::thread(boost::bind(&cameracs::thread_freedisk, this)));
+	thrd_noon_.reset(new boost::thread(boost::bind(&cameracs::thread_noon, this)));
 
 	return true;
 }
@@ -52,7 +54,7 @@ bool cameracs::StartService() {
 void cameracs::StopService() {
 	Stop();
 	// 中断线程
-	interrupt_thread(thrd_freedisk_);
+	interrupt_thread(thrd_noon_);
 	interrupt_thread(thrd_upload_);
 	interrupt_thread(thrd_filter_);
 	interrupt_thread(thrd_camera_);
@@ -246,19 +248,19 @@ void cameracs::process_protocol(apbase proto) {
 	else if (iequals(type, APTYPE_EXPOSE)) {// 曝光指令
 		command_expose(EXPOSE_COMMAND(from_apbase<ascii_proto_expose>(proto)->command));
 	}
+	else if (iequals(type, APTYPE_COOLER)) {// GWAC-GY CCD相机变更制冷温度
+		const NFDevCamPtr nfdev = camctl_->GetCameraInfo();
+		nfdev->coolerGet = from_apbase<ascii_proto_cooler>(proto)->coolget;
+	}
+	else if (iequals(type, APTYPE_FOCUS)) {// 变更焦点位置
+		nfcam_->focus = from_apbase<ascii_proto_focus>(proto)->value;
+	}
 	else if (iequals(type, APTYPE_TELE)) {// 望远镜指向位置. 平场变更位置
 		if (nfobj_.unique()) {
 			boost::shared_ptr<ascii_proto_telescope> tele = from_apbase<ascii_proto_telescope>(proto);
 			nfobj_->ra  = tele->ra;
 			nfobj_->dec = tele->dec;
 		}
-	}
-	else if (iequals(type, APTYPE_FOCUS)) {// 变更焦点位置
-		nfcam_->focus = from_apbase<ascii_proto_focus>(proto)->value;
-	}
-	else if (iequals(type, APTYPE_COOLER)) {// GWAC-GY CCD相机变更制冷温度
-		const NFDevCamPtr nfdev = camctl_->GetCameraInfo();
-		nfdev->coolerGet = from_apbase<ascii_proto_cooler>(proto)->coolget;
 	}
 	else if (iequals(type, APTYPE_MCOVER)) {// 变更镜盖状态
 		nfcam_->mcstate = from_apbase<ascii_proto_mcover>(proto)->value;
@@ -293,6 +295,11 @@ void cameracs::command_expose(EXPOSE_COMMAND cmd) {
 }
 
 //////////////////////////////////////////////////////////////////////////////
+/*
+ * 尝试重新连接服务器
+ * - 每次失败延时增加1分钟
+ * - 最长延时等待5分钟
+ */
 void cameracs::thread_tryconnect_gtoaes() {
 	int count(0);
 
@@ -303,6 +310,11 @@ void cameracs::thread_tryconnect_gtoaes() {
 	}
 }
 
+/*
+ * 尝试重新连接相机
+ * - 每次失败延时增加1分钟
+ * - 最长延时等待5分钟
+ */
 void cameracs::thread_tryconnect_camera() {
 	int count(0);
 	bool success;
@@ -315,6 +327,11 @@ void cameracs::thread_tryconnect_camera() {
 	if (success) PostMessage(MSG_CONNECT_CAMERA);
 }
 
+/*
+ * 尝试重新连接滤光片控制器
+ * - 每次失败延时增加1分钟
+ * - 最长延时等待5分钟
+ */
 void cameracs::thread_tryconnect_filter() {
 	int count(0);
 	bool success;
@@ -336,25 +353,30 @@ void cameracs::thread_upload() {
 	boost::chrono::seconds period(10);
 	boost::mutex mtx;
 	mutex_lock lck(mtx);
-	int n;
-	const char *s;
 
 	while(1) {
 		cv_statchanged_.wait_for(lck, period);
 
-		if (camctl_.unique()) nfcam_->coolget = camctl_->GetCameraInfo()->coolerGet;
-		s = ascproto_->CompactCamera(nfcam_, n);
-		tcptr_->Write(s, n);
+		if (camctl_.unique()) {
+			int n;
+			const char *s;
+			nfcam_->coolget = camctl_->GetCameraInfo()->coolerGet;
+			s = ascproto_->CompactCamera(nfcam_, n);
+			tcptr_->Write(s, n);
+		}
 	}
 }
 
 /*
  * 定时检查清理磁盘空间
  */
-void cameracs::thread_freedisk() {
+void cameracs::thread_noon() {
 	while (1) {
 		free_disk();
 		boost::this_thread::sleep_for(boost::chrono::seconds(next_noon()));
+		// 重新连接滤光片控制器
+		filterctl_.reset();
+		thrd_filter_.reset(new boost::thread(boost::bind(&cameracs::thread_tryconnect_filter, this)));
 	}
 }
 
@@ -384,6 +406,28 @@ long cameracs::next_noon() {
 	ptime noon(now.date(), hours(12));
 	long secs = (noon - now).total_seconds();
 	return secs < 10 ? secs + 86400 : secs;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+void cameracs::create_filepath() {
+	if (filepath_.newseq) {// 创建文件路径
+
+	}
+	// 创建文件名
+}
+
+void cameracs::save_fitsfile() {
+
+	// 保存通用信息
+
+	// 保存专用信息
+	if (ostype_ == OBSST_GWAC) {
+
+	}
+	else {// if (ostype_ == OBSST_NORMAL)
+
+	}
+	// 关闭文件
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -484,10 +528,13 @@ void cameracs::on_connect_filter(const long, const long) {
 }
 
 void cameracs::on_prepare_expose(const long, const long) {
-	if (filterctl_.unique() && (!nfcam_->ifrm || nfobj_->ifrm == nfcam_->ifrm)) {// 检查并重定位滤光片
-		filterctl_->Goto(nfcam_->filter);
+	if ((filepath_.newseq = !nfcam_->ifrm || nfobj_->ifrm == nfcam_->ifrm)) {// 新的观测序列
+		// 检查并重定位滤光片
+		if (filterctl_.unique() && filterctl_->Goto(nfcam_->filter)) {
+			_gLog.Write("filter switches to [%s]", nfcam_->filter.c_str());
+		}
 	}
-
+	// 计算曝光前延时或直接开始曝光
 }
 
 void cameracs::on_process_expose(const long, const long) {

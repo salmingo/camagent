@@ -39,6 +39,17 @@ protected:
 		MSG_FAIL_EXPOSE			//< 曝光过程中遇到错误, 曝光失败
 	};
 
+	/*!
+	 * @struct FilePath 定义FITS文件路径及文件名
+	 */
+	struct FilePath {
+		bool   newseq;		//< 是否新的观测序列
+		string subpath;		//< 在文件根路径下的目录名
+		string pathname;	//< 包含根路径的目录名
+		string filename;	//< 文件名
+		string filepath;	//< 文件全路径名
+	};
+
 //////////////////////////////////////////////////////////////////////////////
 protected:
 	/* 成员变量 */
@@ -57,6 +68,7 @@ protected:
 	NTPPtr   ntp_;		//< NTP服务器控制接口
 	apcam    nfcam_;	//< 相机工作状态
 	apobject nfobj_;	//< 观测目标及曝光参数
+	FilePath filepath_;	//< FITS文件路径名
 	vector<string> filters_;	//< 曝光参数中的滤光片集合
 //////////////////////////////////////////////////////////////////////////////
 	TcpCPtr tcptr_;		//< 网络连接接口
@@ -67,7 +79,7 @@ protected:
 	threadptr thrd_camera_;		//< 线程: 尝试连接相机
 	threadptr thrd_filter_;		//< 线程: 尝试连接滤光片控制器
 	threadptr thrd_upload_;		//< 线程: 向gtoaes服务器上传工作状态
-	threadptr thrd_freedisk_;	//< 线程: 检查并清理磁盘
+	threadptr thrd_noon_;		//< 线程: 每日正午检查/清理
 
 public:
 	/*!
@@ -162,9 +174,12 @@ protected:
 	 */
 	void thread_upload();
 	/*!
-	 * @brief 线程: 定时检查并清理磁盘空间
+	 * @brief 线程: 每日正午执行的检查与清理操作
+	 * @note
+	 * - 检查清理磁盘空间
+	 * - 重新连接滤光片控制器
 	 */
-	void thread_freedisk();
+	void thread_noon();
 	/*!
 	 * @brief 线程: 定时检查相机温度
 	 */
@@ -177,6 +192,18 @@ protected:
 	 * @brief 计算当前时间距离下一个中午的秒数
 	 */
 	long next_noon();
+
+//////////////////////////////////////////////////////////////////////////////
+/* 存储FITS文件 */
+protected:
+	/*!
+	 * @brief 创建FITS文件路径和文件名
+	 */
+	void create_filepath();
+	/*!
+	 * @brief 保存FITS文件
+	 */
+	void save_fitsfile();
 
 //////////////////////////////////////////////////////////////////////////////
 protected:
