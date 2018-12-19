@@ -53,25 +53,22 @@ protected:
 //////////////////////////////////////////////////////////////////////////////
 protected:
 	/* 成员变量 */
-//////////////////////////////////////////////////////////////////////////////
+	boost::shared_ptr<Parameter> param_;	//< 配置参数
 	OBSS_TYPE ostype_;	//< 观测系统类型
-	double lgt_;	//< 地理经度, 量纲: 角度, 东经为正
-	double lat_;	//< 地理纬度, 量纲: 角度, 北纬为正
-	double alt_;	//< 海拔, 量纲: 米
-	boost::asio::io_service* ios_;	//< IO服务
-	boost::shared_ptr<VersionMonitor> vermon_;	//< 版本更新监视
-	boost::shared_ptr<Parameter> param_;		//< 配置参数
-	boost::shared_ptr<FilterCtrl> filterctl_;	//< 滤光片控制接口
-	cambase camctl_;		//< 相机控制接口
-	EXPOSE_COMMAND cmdexp_;	//< 曝光指令
-	boost::condition_variable cv_statchanged_;	//< 事件: 工作状态发生变化
-	NTPPtr   ntp_;		//< NTP服务器控制接口
-	apcam    nfcam_;	//< 相机工作状态
+	apobsite obsite_;	//< 测站参数
 	apobject nfobj_;	//< 观测目标及曝光参数
 	FilePath filepath_;	//< FITS文件路径名
-	vector<string> filters_;	//< 曝光参数中的滤光片集合
+	NTPPtr   ntp_;		//< NTP服务器控制接口
+	boost::condition_variable cv_statchanged_;	//< 事件: 工作状态发生变化
 //////////////////////////////////////////////////////////////////////////////
-	TcpCPtr tcptr_;		//< 网络连接接口
+	/* 控制接口 */
+	boost::shared_ptr<FilterCtrl> filterctl_;	//< 滤光片控制接口
+	vector<string> filters_;	//< 曝光参数中的滤光片集合
+	cambase camctl_;			//< 相机控制接口
+	EXPOSE_COMMAND cmdexp_;		//< 曝光指令
+	apcam    nfcam_;			//< 相机工作状态
+//////////////////////////////////////////////////////////////////////////////
+	TcpCPtr tcptr_;			//< 网络连接接口
 	AscProtoPtr ascproto_;	//< 通信协议接口
 	boost::shared_array<char> bufrcv_;	//< 网络信息接收缓存区
 //////////////////////////////////////////////////////////////////////////////
@@ -80,6 +77,10 @@ protected:
 	threadptr thrd_filter_;		//< 线程: 尝试连接滤光片控制器
 	threadptr thrd_upload_;		//< 线程: 向gtoaes服务器上传工作状态
 	threadptr thrd_noon_;		//< 线程: 每日正午检查/清理
+	threadptr thrd_clocksync_;	//< 线程: 系统空闲时同步本地时钟
+//////////////////////////////////////////////////////////////////////////////
+	boost::asio::io_service* ios_;	//< IO服务
+	boost::shared_ptr<VersionMonitor> vermon_;	//< 版本更新监视
 
 public:
 	/*!
@@ -181,9 +182,9 @@ protected:
 	 */
 	void thread_noon();
 	/*!
-	 * @brief 线程: 定时检查相机温度
+	 * @brief 线程: 空闲时校正本地时钟
 	 */
-	void thread_cycle();
+	void thread_clocksync();
 	/*!
 	 * @brief 检查磁盘可用空间并清理磁盘
 	 */
@@ -204,6 +205,15 @@ protected:
 	 * @brief 保存FITS文件
 	 */
 	void save_fitsfile();
+	/*!
+	 * @brief 评估平场是否有效
+	 * @return
+	 *  1: 有效平场, 调节后曝光时间仍然在有效范围内
+	 *  2: 有效平场, 调节后曝光时间超出有效范围
+	 * -1: 无效平场, 调节后曝光时间仍然在有效范围内
+	 * -2: 无效平场, 调节后曝光时间超出有效范围
+	 */
+	int assess_flat();
 
 //////////////////////////////////////////////////////////////////////////////
 protected:
@@ -245,4 +255,29 @@ protected:
 	void on_fail_expose(const long, const long);
 };
 
+/*!
+ * @brief 评估平场图像
+ * @param data 数据存储区
+ * @param w    图像宽度
+ * @param h    图像高度
+ * @return
+ * 平场图像中心区域统计均值
+ * @note
+ * 中心区域定义为图像中心宽高=100像素范围
+ */
+template<class T>
+int asses_flat(T *data, int w, int h) {
+	double sum(0.0);
+	int x1 = w / 2 - 50;
+	int x2 = x1 + 100;
+	int y1 = h / 2 - 50;
+	int y2 = y1 + 100;
+	int n = (x2 - x1) * (y2 - y1);
+	int x, y;
+	T *ptr;
+	for (y = y1, ptr = data + y1 * w; y < y2; ++y, ptr += w) {
+		for (x = x1; x < x2; ++x) sum += ptr[x];
+	}
+	return int(sum / n);
+}
 #endif /* SRC_CAMERACS_H_ */

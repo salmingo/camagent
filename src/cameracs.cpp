@@ -19,11 +19,13 @@ using namespace boost;
 
 cameracs::cameracs(boost::asio::io_service* ios) {
 	ostype_ = OBSST_UNKNOWN;
-	lgt_    = 120.0;
-	lat_    = 40.0;
-	alt_    = 1000.0;
 	ios_    = ios;
 	cmdexp_ = EXPOSE_INIT;
+
+	nfcam_ = boost::make_shared<ascii_proto_camera>();
+	nfcam_->gid   = param_->gid;
+	nfcam_->uid   = param_->uid;
+	nfcam_->cid   = param_->cid;
 }
 
 cameracs::~cameracs() {
@@ -38,12 +40,13 @@ bool cameracs::StartService() {
 	string name = "msgque_";
 	name += DAEMON_NAME;
 	register_messages();
-	if (!Start(name.c_str())) return false;
-	if (!connect_camera())    return false;
-	if (!connect_filter())    return false;
-	if (param_->bNTP) {
+	if (!Start(name.c_str())) return false; // 启动消息队列
+	if (!connect_camera())    return false; // 连接相机
+	if (!connect_filter())    return false; // 连接滤光片
+	if (param_->bNTP) {// 连接NTP服务器
 		ntp_ = make_ntp(param_->hostNTP.c_str(), 123, param_->maxClockDiff);
 		ntp_->EnableAutoSynch(false);
+		thrd_clocksync_.reset(new boost::thread(boost::bind(&cameracs::thread_clocksync, this)));
 	}
 	connect_gtoaes(); // 连接服务器
 	thrd_noon_.reset(new boost::thread(boost::bind(&cameracs::thread_noon, this)));
@@ -55,6 +58,7 @@ void cameracs::StopService() {
 	Stop();
 	// 中断线程
 	interrupt_thread(thrd_noon_);
+	interrupt_thread(thrd_clocksync_);
 	interrupt_thread(thrd_upload_);
 	interrupt_thread(thrd_filter_);
 	interrupt_thread(thrd_camera_);
@@ -116,10 +120,6 @@ bool cameracs::connect_camera() {
 		const ExpProcCBSlot &slot = boost::bind(&cameracs::expose_process, this, _1, _2, _3);
 		camctl_->RegisterExposeProc(slot);
 		// 设置相机监测量
-		nfcam_ = boost::make_shared<ascii_proto_camera>();
-		nfcam_->gid   = param_->gid;
-		nfcam_->uid   = param_->uid;
-		nfcam_->cid   = param_->cid;
 		nfcam_->state = CAMCTL_IDLE;
 		nfcam_->errcode = 0;
 	}
@@ -236,7 +236,7 @@ void cameracs::process_protocol(apbase proto) {
 	if (iequals(type, APTYPE_OBJECT)) {// 观测目标及曝光参数
 		if (!nfobj_.unique()) {
 			nfobj_ = from_apbase<ascii_proto_object>(proto);
-			_gLog.Write("New sequence: [ name=%s, imgtype=%s, expdur=%.3f, frmcnt=%d ]",
+			_gLog.Write("New sequence: [name=%s, imgtype=%s, expdur=%.3f, frmcnt=%d]",
 					nfobj_->objname.c_str(), nfobj_->imgtype.c_str(), nfobj_->expdur, nfobj_->frmcnt);
 			*nfcam_ = *nfobj_;
 			resolve_filter();
@@ -265,19 +265,16 @@ void cameracs::process_protocol(apbase proto) {
 	else if (iequals(type, APTYPE_MCOVER)) {// 变更镜盖状态
 		nfcam_->mcstate = from_apbase<ascii_proto_mcover>(proto)->value;
 	}
-	else if (iequals(type, APTYPE_TERM)) {// 注册结果. 反馈观测系统类型
-		apterm term = from_apbase<ascii_proto_term>(proto);
-		ostype_ = OBSS_TYPE(term->ostype);
-		lgt_    = term->lgt;
-		lat_    = term->lat;
-		alt_    = term->alt;
+	else if (iequals(type, APTYPE_OBSITE)) {// 注册结果. 反馈测站参数
+		obsite_ = from_apbase<ascii_proto_obsite>(proto);
+	}
+	else if (iequals(type, APTYPE_OBSSTYPE)) {// 注册结果, 观测系统类型
+		ostype_ = OBSS_TYPE(from_apbase<ascii_proto_obsstype>(proto)->obsstype);
 	}
 }
 
 void cameracs::command_expose(EXPOSE_COMMAND cmd) {
 	if (cmdexp_ != cmd && nfobj_.unique()) {
-		bool is_valid(true);
-
 		CAMCTL_STATUS state = CAMCTL_STATUS(nfcam_->state);
 		if ((cmd == EXPOSE_RESUME && (state == CAMCTL_PAUSE || state >= CAMCTL_WAIT_SYNC))
 				|| (cmd == EXPOSE_START && state == CAMCTL_IDLE)) {// 开始或恢复曝光
@@ -289,8 +286,7 @@ void cameracs::command_expose(EXPOSE_COMMAND cmd) {
 		else if (cmd == EXPOSE_STOP) {// 中止曝光
 
 		}
-		else is_valid = false;
-		if (is_valid) cmdexp_ = cmd;
+		cmdexp_ = cmd;
 	}
 }
 
@@ -380,6 +376,21 @@ void cameracs::thread_noon() {
 	}
 }
 
+/*
+ * 空闲时校正本地时钟
+ */
+void cameracs::thread_clocksync() {
+	boost::chrono::minutes period(1);
+
+	while(1) {
+		boost::this_thread::sleep_for(period);
+		if (nfcam_->state == CAMCTL_IDLE) ntp_->SynchClock();
+	}
+}
+
+/*
+ * 清理磁盘空间
+ */
 void cameracs::free_disk() {
 	namespace fs = boost::filesystem;
 	int days3 = 3 * 86400; // 删除3日前数据
@@ -428,6 +439,37 @@ void cameracs::save_fitsfile() {
 
 	}
 	// 关闭文件
+}
+
+/*
+ * 评估平场有效性
+ */
+int cameracs::assess_flat() {
+	int rslt(0);
+	bool valid1, valid2;
+	/* 1: 统计图像中心区域平均值, 作为平场有效性评估依据 */
+	int mean;
+	const NFDevCamPtr nfcam = camctl_->GetCameraInfo();
+	int w = nfcam->roi.Width();
+	int h = nfcam->roi.Height();
+	if (nfcam->ADBitPixel <= 8) {
+		mean = asses_flat((uint8_t*) (nfcam->data.get()), w, h);
+	}
+	else if (nfcam->ADBitPixel <= 16) {
+		mean = asses_flat((uint16_t*) (nfcam->data.get()), w, h);
+	}
+	else if (nfcam->ADBitPixel <= 32) {
+		mean = asses_flat((uint32_t*) (nfcam->data.get()), w, h);
+	}
+	if (mean <= param_->tsaturate) {// 饱和反转
+		mean += (0x1 << nfcam->ADBitPixel);
+	}
+	/* 2: 评估平场有效性 */
+	valid1 = mean >= param_->flatMin && mean <= param_->flatMax;
+
+	/* 3: 修正曝光时间 */
+
+	return rslt;
 }
 
 //////////////////////////////////////////////////////////////////////////////

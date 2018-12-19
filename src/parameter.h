@@ -36,7 +36,7 @@ struct Parameter {
 	bool   bEM;			//< 启用EM
 	int    gainEM;		//< EM增益
 	double coolerset;	//< 制冷温度
-	double tsaturate;	//< 饱和反转值. 适用于不支持饱和抑制类型
+	int    tsaturate;	//< 饱和反转值. 适用于不支持饱和抑制类型
 	/* 滤光片 */
 	bool   bFilter;		//< 是否支持滤光片
 	int    nFilter;		//< 滤光片控制器插槽数量
@@ -48,11 +48,14 @@ struct Parameter {
 	/* 图像显示标志 */
 	bool   bShowImg;
 	/* 自动平场参数 */
-	double flatMin;		//< 有效平场最小值
-	double flatMax;		//< 有效平场最大值
-	double flatExpect;	//< 有效平场期望值
+	int    flatMin;		//< 有效平场最小值
+	int    flatMax;		//< 有效平场最大值
 	double flatMinT;	//< 平场最短曝光时间
 	double flatMaxT;	//< 平场最长曝光时间
+	/* 光学系统参数 */
+	int		aptdia;		//< 主镜口径, 量纲: 厘米
+	int		focalen;	//< 焦距, 量纲: 毫米
+	string	focus;		//< 焦点类型
 	/* 网络标志 */
 	string gid;			//< 组标志
 	string uid;			//< 单元标志
@@ -96,7 +99,7 @@ public:
 		camera.add("Setting.<xmlattr>.VSRate",   VSRate  = 0);
 		camera.add("Setting.<xmlattr>.Gain",     gain      = 1);
 		camera.add("CoolerTarget",        coolerset = -40.0);
-		camera.add("ReverseSaturation",   tsaturate = 500.0);
+		camera.add("ReverseSaturation",   tsaturate = 600);
 		camera.add("EM.<xmlattr>.Enable", bEM       = false);
 		camera.add("EM.<xmlattr>.Gain",   gainEM    = 10);
 		/* 滤光片 */
@@ -124,11 +127,15 @@ public:
 		pt.add("ShowImage.<xmlattr>.Enable", bShowImg = false);
 		/* 自动平场参数 */
 		ptree &flat = pt.add("FlatField", "");
-		flat.add("Threshold.<xmlattr>.Minimum",  flatMin    = 15000);
-		flat.add("Threshold.<xmlattr>.Maximum",  flatMax    = 40000);
-		flat.add("Threshold.<xmlattr>.Expect",   flatExpect = 30000);
+		flat.add("Threshold.<xmlattr>.Minimum",  flatMin    = 20000);
+		flat.add("Threshold.<xmlattr>.Maximum",  flatMax    = 45000);
 		flat.add("Exposure.<xmlattr>.Minimum",   flatMinT   =  2.0);
 		flat.add("Exposure.<xmlattr>.Maximum",   flatMaxT   = 15.0);
+		/* 光学系统参数 */
+		ptree &optic = pt.add("Optic", "");
+		optic.add("<xmlattr>.Diameter", aptdia  = 60);
+		optic.add("<xmlattr>.FocalLen", focalen = 4800);
+		optic.add("<xmlattr>.FocusType",focus   = "Cassegrain");
 		/* 网络标志 */
 		pt.add("NetworkID.<xmlattr>.Group",  gid = "001");
 		pt.add("NetworkID.<xmlattr>.Unit",   uid = "001");
@@ -170,7 +177,7 @@ public:
 		VSRate   = pt.get("Camera.Setting.<xmlattr>.VSRate",    0);
 		gain     = pt.get("Camera.Setting.<xmlattr>.Gain",      0);
 		coolerset = pt.get("Camera.CoolerTarget",         -20.0);
-		tsaturate = pt.get("Camera.ReverseSaturation",    600.0);
+		tsaturate = pt.get("Camera.ReverseSaturation",    600);
 		bEM       = pt.get("Camera.EM.<xmlattr>.Enable",   true);
 		gainEM    = pt.get("Camera.EM.<xmlattr>.Gain",        5);
 		/* 滤光片 */
@@ -190,17 +197,20 @@ public:
 		/* 图像显示标志 */
 		bShowImg = pt.get("ShowImage.<xmlattr>.Enable", false);
 		/* 自动平场参数 */
-		flatMin    = pt.get("FlatField.Threshold.<xmlattr>.Minimum",  15000);
-		flatMax    = pt.get("FlatField.Threshold.<xmlattr>.Maximum",  40000);
-		flatExpect = pt.get("FlatField.Threshold.<xmlattr>.Expect",   30000);
-		flatMinT   = pt.get("FlatField.Exposure.<xmlattr>.Minimum",     2.0);
+		flatMin    = pt.get("FlatField.Threshold.<xmlattr>.Minimum",  20000);
+		flatMax    = pt.get("FlatField.Threshold.<xmlattr>.Maximum",  45000);
+		flatMinT   = pt.get("FlatField.Exposure.<xmlattr>.Minimum",     5.0);
 		flatMaxT   = pt.get("FlatField.Exposure.<xmlattr>.Maximum",    15.0);
+		/* 光学系统参数 */
+		aptdia  = pt.get("Optic.<xmlattr>.Diameter",            60);
+		focalen = pt.get("Optic.<xmlattr>.FocalLen",          4800);
+		focus   = pt.get("Optic.<xmlattr>.FocusType", "Cassegrain");
 		/* 网络标志 */
 		gid = pt.get("NetworkID.<xmlattr>.Group",  "001");
 		uid = pt.get("NetworkID.<xmlattr>.Unit",   "001");
 		cid = pt.get("NetworkID.<xmlattr>.Camera", "001");
 		/* NTP守时服务器 */
-		bNTP         = pt.get("NTP.<xmlattr>.Enable",      true);
+		bNTP         = pt.get("NTP.<xmlattr>.Enable",       true);
 		hostNTP      = pt.get("NTP.<xmlattr>.IP",           "172.28.1.3");
 		maxClockDiff = pt.get("NTP.<xmlattr>.MaxClockDiff", 10);
 		/* 观测调度服务器 */
