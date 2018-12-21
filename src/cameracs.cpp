@@ -240,13 +240,17 @@ void cameracs::process_protocol(apbase proto) {
 					nfobj_->objname.c_str(), nfobj_->imgtype.c_str(), nfobj_->expdur, nfobj_->frmcnt);
 			*nfcam_ = *nfobj_;
 			resolve_filter();
+			// 设置平场初始曝光时间
+			if (iequals(nfobj_->imgtype, "flat")) nfcam_->expdur = param_->flatMinT;
 		}
 		else {
 			_gLog.Write(LOG_WARN, NULL, "<object> is rejected for system is busy");
 		}
 	}
 	else if (iequals(type, APTYPE_EXPOSE)) {// 曝光指令
-		command_expose(EXPOSE_COMMAND(from_apbase<ascii_proto_expose>(proto)->command));
+		if (nfobj_.unique()) {
+			command_expose(EXPOSE_COMMAND(from_apbase<ascii_proto_expose>(proto)->command));
+		}
 	}
 	else if (iequals(type, APTYPE_COOLER)) {// GWAC-GY CCD相机变更制冷温度
 		const NFDevCamPtr nfdev = camctl_->GetCameraInfo();
@@ -274,7 +278,7 @@ void cameracs::process_protocol(apbase proto) {
 }
 
 void cameracs::command_expose(EXPOSE_COMMAND cmd) {
-	if (cmdexp_ != cmd && nfobj_.unique()) {
+	if (cmdexp_ != cmd) {
 		CAMCTL_STATUS state = CAMCTL_STATUS(nfcam_->state);
 		if ((cmd == EXPOSE_RESUME && (state == CAMCTL_PAUSE || state >= CAMCTL_WAIT_SYNC))
 				|| (cmd == EXPOSE_START && state == CAMCTL_IDLE)) {// 开始或恢复曝光
@@ -442,11 +446,17 @@ void cameracs::save_fitsfile() {
 }
 
 /*
- * 评估平场有效性
+ * 评估平场有效性, 返回值定义:
+ * - & 0x01 != 0时, 表示数据有效
+ * - & 0x10 != 0时, 表示曝光时间在有效范围内
+ * 安装上述定义, 返回值选项为:
+ * 0x00: 无效平场, 调节后曝光时间超出有效范围
+ * 0x01: 有效平场, 调节后曝光时间超出有效范围
+ * 0x10: 无效平场, 调节后曝光时间仍然在有效范围内
+ * 0x11: 有效平场, 调节后曝光时间仍然在有效范围内
  */
 int cameracs::assess_flat() {
 	int rslt(0);
-	bool valid1, valid2;
 	/* 1: 统计图像中心区域平均值, 作为平场有效性评估依据 */
 	int mean;
 	const NFDevCamPtr nfcam = camctl_->GetCameraInfo();
@@ -465,9 +475,28 @@ int cameracs::assess_flat() {
 		mean += (0x1 << nfcam->ADBitPixel);
 	}
 	/* 2: 评估平场有效性 */
-	valid1 = mean >= param_->flatMin && mean <= param_->flatMax;
+	if (mean >= param_->flatMin && mean <= param_->flatMax) rslt |= 0x01;
 
 	/* 3: 修正曝光时间 */
+	double tmin(param_->flatMinT), tmax(param_->flatMaxT);
+	double t1 = nfcam_->expdur * param_->flatMin / mean;
+	double t2 = nfcam_->expdur * param_->flatMax / mean;
+	bool c1, c2;
+	double t;
+
+	if (   (c1 = nfcam->ampm && t1 > tmax)   // 早上: 还没到达合适的平场时间
+		|| (c2 = !nfcam->ampm && t2 < tmin)  // 下午: 还没到达合适的平场时间
+		|| (t1 <= tmax && t2 >= tmin)) {     // 平场时间
+		if      (c1) t = tmax;
+		else if (c2) t = tmin;
+		else {
+			if (t1 < tmin) t1 = tmin;
+			if (t2 > tmax) t2 = tmax;
+			t = (t1 + t2) * 0.5; // 调制系数0.5？是否合适？判据是什么？
+		}
+		nfcam_->expdur = t;
+		rslt |= 0x10;
+	}
 
 	return rslt;
 }
