@@ -214,6 +214,14 @@ protected:
 	 * 0x11: 有效平场, 调节后曝光时间仍然在有效范围内
 	 */
 	int assess_flat();
+	/*!
+	 * @brief 将新产生的FITS文件上传到服务器
+	 */
+	void upload_file();
+	/*!
+	 * @brief 显示图像
+	 */
+	void display_image();
 
 //////////////////////////////////////////////////////////////////////////////
 protected:

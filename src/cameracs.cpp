@@ -21,11 +21,6 @@ cameracs::cameracs(boost::asio::io_service* ios) {
 	ostype_ = OBSST_UNKNOWN;
 	ios_    = ios;
 	cmdexp_ = EXPOSE_INIT;
-
-	nfcam_ = boost::make_shared<ascii_proto_camera>();
-	nfcam_->gid   = param_->gid;
-	nfcam_->uid   = param_->uid;
-	nfcam_->cid   = param_->cid;
 }
 
 cameracs::~cameracs() {
@@ -34,6 +29,10 @@ cameracs::~cameracs() {
 bool cameracs::StartService() {
 	param_  = boost::make_shared<Parameter>();
 	param_->Load(gConfigPath);
+	nfcam_ = boost::make_shared<ascii_proto_camera>();
+	nfcam_->gid   = param_->gid;
+	nfcam_->uid   = param_->uid;
+	nfcam_->cid   = param_->cid;
 	ascproto_ = make_ascproto();
 	bufrcv_.reset(new char[TCP_PACK_SIZE]);
 	/* 注册消息并尝试启动消息队列 */
@@ -188,27 +187,36 @@ void cameracs::resolve_filter() {
 
 /*
  * 检查曝光序列是否结束
- * - 检查当前曝光参数序列是否结束
- * - 检查是否需要切换滤光片
- * - 检查是否需要开始新的循环轮次
+ * - 是否已到达曝光结束时间
+ * - 当前曝光参数序列是否结束
+ * - 是否需要切换滤光片
+ * - 是否需要开始新的循环轮次
  */
 bool cameracs::exposure_over() {
-	bool rslt(false);
-	if (++nfcam_->ifrm == nfcam_->frmcnt) {// 当前曝光参数序列已完成
-		if (!filters_.size()) rslt = true;
+	bool over(false);
+
+	try {// 若设置曝光结束时间
+		ptime tmend = from_iso_extended_string(nfobj_->end_time);
+		ptime now   = second_clock::universal_time();
+		over = (now - tmend).total_seconds() >= 0;
+	}
+	catch(...) {}
+	// 当前曝光参数序列已完成
+	if (!over && ++nfcam_->ifrm == nfcam_->frmcnt) {
+		if (!filters_.size()) over = true;
 		else if (++nfcam_->ifilter == filters_.size()) {
-			if (++nfcam_->iloop == nfcam_->loopcnt) rslt = true;
+			if (++nfcam_->iloop == nfcam_->loopcnt) over = true;
 			else nfcam_->ifilter = 0;
 		}
 
-		if (!rslt) {
+		if (!over) {
 			nfcam_->ifrm = 0;
 			nfcam_->filter = filters_[nfcam_->ifilter];
 		}
 	}
-	if (rslt) nfobj_.reset();
+	if (over) nfobj_.reset();
 
-	return rslt;
+	return over;
 }
 
 void cameracs::expose_process(const double left, const double percent, const int state) {
@@ -459,21 +467,21 @@ int cameracs::assess_flat() {
 	int rslt(0);
 	/* 1: 统计图像中心区域平均值, 作为平场有效性评估依据 */
 	int mean;
-	const NFDevCamPtr nfcam = camctl_->GetCameraInfo();
-	int w = nfcam->roi.Width();
-	int h = nfcam->roi.Height();
-	if (nfcam->ADBitPixel <= 8) {
-		mean = asses_flat((uint8_t*) (nfcam->data.get()), w, h);
+	const NFDevCamPtr nfdev = camctl_->GetCameraInfo();
+	int w = nfdev->roi.Width();
+	int h = nfdev->roi.Height();
+	if (nfdev->ADBitPixel <= 8) {
+		mean = asses_flat((uint8_t*) (nfdev->data.get()), w, h);
 	}
-	else if (nfcam->ADBitPixel <= 16) {
-		mean = asses_flat((uint16_t*) (nfcam->data.get()), w, h);
+	else if (nfdev->ADBitPixel <= 16) {
+		mean = asses_flat((uint16_t*) (nfdev->data.get()), w, h);
 	}
-	else if (nfcam->ADBitPixel <= 32) {
-		mean = asses_flat((uint32_t*) (nfcam->data.get()), w, h);
+	else if (nfdev->ADBitPixel <= 32) {
+		mean = asses_flat((uint32_t*) (nfdev->data.get()), w, h);
 	}
-	if (mean <= param_->tsaturate) {// 饱和反转
-		mean += (0x1 << nfcam->ADBitPixel);
-	}
+	// 饱和反转
+	if (mean <= param_->tsaturate) mean += (0x1 << nfdev->ADBitPixel);
+
 	/* 2: 评估平场有效性 */
 	if (mean >= param_->flatMin && mean <= param_->flatMax) rslt |= 0x01;
 
@@ -481,24 +489,38 @@ int cameracs::assess_flat() {
 	double tmin(param_->flatMinT), tmax(param_->flatMaxT);
 	double t1 = nfcam_->expdur * param_->flatMin / mean;
 	double t2 = nfcam_->expdur * param_->flatMax / mean;
-	bool c1, c2;
 	double t;
+	bool c1, c2;
 
-	if (   (c1 = nfcam->ampm && t1 > tmax)   // 早上: 还没到达合适的平场时间
-		|| (c2 = !nfcam->ampm && t2 < tmin)  // 下午: 还没到达合适的平场时间
+	if (   (c1 = nfdev->ampm && t1 > tmax)   // 早上: 还没到达合适的平场时间
+		|| (c2 = !nfdev->ampm && t2 < tmin)  // 下午: 还没到达合适的平场时间
 		|| (t1 <= tmax && t2 >= tmin)) {     // 平场时间
 		if      (c1) t = tmax;
 		else if (c2) t = tmin;
 		else {
-			if (t1 < tmin) t1 = tmin;
-			if (t2 > tmax) t2 = tmax;
-			t = (t1 + t2) * 0.5; // 调制系数0.5？是否合适？判据是什么？
+			t = nfdev->ampm ? t2 * 0.95 : t2 * 1.05;
+			if      (t < tmin) t = tmin;
+			else if (t > tmax) t = tmax;
 		}
-		nfcam_->expdur = t;
+		nfobj_->expdur = t;
 		rslt |= 0x10;
 	}
 
 	return rslt;
+}
+
+/*
+ * 将新产生的FITS文件上传到服务器
+ */
+void cameracs::upload_file() {
+
+}
+
+/*
+ * 显示新产生的FITS图像
+ */
+void cameracs::display_image() {
+
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -608,18 +630,79 @@ void cameracs::on_prepare_expose(const long, const long) {
 	// 计算曝光前延时或直接开始曝光
 }
 
+/*
+ * 进入条件: 曝光过程中
+ */
 void cameracs::on_process_expose(const long, const long) {
-
+	//...暂不处理
 }
 
+/*
+ * 进入条件: 图像数据已读入内存
+ */
 void cameracs::on_complete_expose(const long, const long) {
+	/* 1: 处理已完成曝光数据 */
+	bool is_flat = iequals(nfobj_->imgtype, "flat");
+	bool tosave(true), tocont(true);
 
+	if (is_flat) {
+		int rslt = assess_flat();
+		tosave = rslt & 0x01;
+		tocont = rslt & 0x10;
+	}
+	if (tosave) {
+		save_fitsfile(); // 保存文件
+		upload_file();   // 上传文件
+		display_image(); // 显示图像
+		// 更新工作状态
+		nfcam_->state = CAMCTL_COMPLETE;
+		cv_statchanged_.notify_one();
+	}
+
+	/* 2: 启动后续曝光 */
+	tocont = tocont && (cmdexp_ == EXPOSE_START || cmdexp_ == EXPOSE_RESUME) && !exposure_over();
+	if (tocont) {
+		if (is_flat) {// 平场: 等待新的曝光指令或重新定位
+			nfcam_->state = tosave ? CAMCTL_WAIT_FLAT : CAMCTL_WAIT_SYNC;
+			cv_statchanged_.notify_one();
+		}
+		else PostMessage(MSG_PREPARE_EXPOSE);
+	}
+	else {
+		bool paused = cmdexp_ == EXPOSE_PAUSE;
+		nfcam_->state = paused ? CAMCTL_PAUSE : CAMCTL_IDLE;
+		cv_statchanged_.notify_one();
+		_gLog.Write("exposure sequence is %s", paused ? "suspend" : "over");
+	}
 }
 
+/*
+ * 进入条件: 相机空闲
+ * - 启动曝光流程后, 响应指令进入空闲状态
+ */
 void cameracs::on_abort_expose(const long, const long) {
-
+	if (cmdexp_ == EXPOSE_STOP) {
+		_gLog.Write("exposure sequence is aborted");
+		nfcam_->state = CAMCTL_IDLE;
+	}
+	else if (cmdexp_ == EXPOSE_PAUSE) {
+		_gLog.Write("exposure sequence is suspend");
+		nfcam_->state = CAMCTL_PAUSE;
+	}
+	cv_statchanged_.notify_one();
 }
 
+/*
+ * 进入条件: 相机故障
+ */
 void cameracs::on_fail_expose(const long, const long) {
-
+	// 设置相机状态
+	_gLog.Write(LOG_FAULT, NULL, "exposure failed: %s",
+			camctl_->GetCameraInfo()->errmsg.c_str());
+	nfcam_->state = CAMCTL_ERROR;
+	cv_statchanged_.notify_one();
+	// 重新连接相机
+	_gLog.Write("camera fall in trouble. try to re-connect camera");
+	camctl_->Disconnect();
+	thrd_camera_.reset(new boost::thread(boost::bind(&cameracs::thread_tryconnect_camera, this)));
 }
