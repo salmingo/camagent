@@ -6,6 +6,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <longnam.h>
+#include <fitsio.h>
 #include "globaldef.h"
 #include "GLog.h"
 #include "cameracs.h"
@@ -16,11 +18,13 @@
 
 using namespace std;
 using namespace boost;
+using namespace boost::posix_time;
 
 cameracs::cameracs(boost::asio::io_service* ios) {
 	ostype_ = OBSST_UNKNOWN;
 	ios_    = ios;
 	cmdexp_ = EXPOSE_INIT;
+	cds9_   = boost::make_shared<CDs9>();
 }
 
 cameracs::~cameracs() {
@@ -42,6 +46,11 @@ bool cameracs::StartService() {
 	if (!Start(name.c_str())) return false; // 启动消息队列
 	if (!connect_camera())    return false; // 连接相机
 	if (!connect_filter())    return false; // 连接滤光片
+	if (param_->bFile) {// 启动文件上传服务
+		ftcli_.reset(new FileTransferClient(param_->hostFile, param_->portFile));
+		ftcli_->SetDeviceID(param_->gid, param_->uid, param_->cid);
+		ftcli_->Start();
+	}
 	if (param_->bNTP) {// 连接NTP服务器
 		ntp_ = make_ntp(param_->hostNTP.c_str(), 123, param_->maxClockDiff);
 		ntp_->EnableAutoSynch(false);
@@ -63,6 +72,7 @@ void cameracs::StopService() {
 	interrupt_thread(thrd_camera_);
 	interrupt_thread(thrd_gtoaes_);
 
+	if (ftcli_.unique()) ftcli_->Stop();
 	// 断开与设备的连接
 	if (filterctl_.unique()) filterctl_->Disconnect();
 	if (camctl_.unique()) camctl_->Disconnect();
@@ -202,7 +212,7 @@ bool cameracs::exposure_over() {
 	}
 	catch(...) {}
 	// 当前曝光参数序列已完成
-	if (!over && ++nfcam_->ifrm == nfcam_->frmcnt) {
+	if (!over && nfcam_->ifrm == nfcam_->frmcnt) {
 		if (!filters_.size()) over = true;
 		else if (++nfcam_->ifilter == filters_.size()) {
 			if (++nfcam_->iloop == nfcam_->loopcnt) over = true;
@@ -248,6 +258,9 @@ void cameracs::process_protocol(apbase proto) {
 					nfobj_->objname.c_str(), nfobj_->imgtype.c_str(), nfobj_->expdur, nfobj_->frmcnt);
 			*nfcam_ = *nfobj_;
 			resolve_filter();
+			if (ftcli_.unique()) {// 设置天区划分模式
+				ftcli_->SetObject(nfobj_->grid_id, nfobj_->field_id);
+			}
 			// 设置平场初始曝光时间
 			if (iequals(nfobj_->imgtype, "flat")) nfcam_->expdur = param_->flatMinT;
 		}
@@ -439,18 +452,124 @@ void cameracs::create_filepath() {
 	// 创建文件名
 }
 
-void cameracs::save_fitsfile() {
+bool cameracs::save_fitsfile() {
+	fitsfile *fitsptr;
+	int status(0);
+	int naxis(2);
+	const NFDevCamPtr nfdev = camctl_->GetCameraInfo();
+	long naxes[] = {nfdev->roi.Width(), nfdev->roi.Height()};
+	long pixels = nfdev->roi.Width() * nfdev->roi.Height();
+	int tmpint;
+	string tmpstr;
 
-	// 保存通用信息
-
-	// 保存专用信息
-	if (ostype_ == OBSST_GWAC) {
-
+	/* 1: 创建文件并保存图像数据 */
+	fits_create_file(&fitsptr, filepath_.filepath.c_str(), &status);
+	if (nfdev->ADBitPixel <= 8) {
+		fits_create_img(fitsptr, BYTE_IMG, naxis, naxes, &status);
+		fits_write_img(fitsptr, TBYTE, 1, pixels, nfdev->data.get(), &status);
 	}
-	else {// if (ostype_ == OBSST_NORMAL)
-
+	else if (nfdev->ADBitPixel <= 16) {
+		fits_create_img(fitsptr, USHORT_IMG, naxis, naxes, &status);
+		fits_write_img(fitsptr, TUSHORT, 1, pixels, nfdev->data.get(), &status);
 	}
-	// 关闭文件
+	else {
+		fits_create_img(fitsptr, ULONG_IMG, naxis, naxes, &status);
+		fits_write_img(fitsptr, TUINT, 1, pixels, nfdev->data.get(), &status);
+	}
+	/* 2: 曝光参数 */
+	fits_write_key(fitsptr, TSTRING, "CCDTYPE",  (void*)nfobj_->imgtype.c_str(), "type of image",                   &status);
+	fits_write_key(fitsptr, TSTRING, "DATE-OBS", (void*)nfdev->dateobs.c_str(),  "UTC date of begin observation",   &status);
+	fits_write_key(fitsptr, TSTRING, "TIME-OBS", (void*)nfdev->timeobs.c_str(),  "UTC time of begin observation",   &status);
+	fits_write_key(fitsptr, TSTRING, "TIME-END", (void*)nfdev->timeend.c_str(),  "UTC time of end observation",     &status);
+	fits_write_key(fitsptr, TDOUBLE, "JD",       &nfdev->jd,                     "Julian day of begin observation", &status);
+	fits_write_key(fitsptr, TFLOAT,  "EXPTIME",  &nfdev->expdur,                 "exposure duration",               &status);
+	if (nfcam_->filter.size()) {
+		fits_write_key(fitsptr, TSTRING, "FILTER", (void*)nfcam_->filter.c_str(), "name of selected filter", &status);
+	}
+	/* 3: 观测目标 */
+	if (nfobj_->plan_sn != INT_MAX)
+		fits_write_key(fitsptr, TINT,    "PLAN_SN",  &nfobj_->plan_sn, "plan number", &status);
+	if (nfobj_->plan_time.size())
+		fits_write_key(fitsptr, TSTRING, "PLANTIME", (void*)nfobj_->plan_time.c_str(), "plan time", &status);
+	if (nfobj_->plan_type.size())
+		fits_write_key(fitsptr, TSTRING, "PLANTYPE", (void*)nfobj_->plan_type.c_str(), "plan type", &status);
+	if (nfobj_->observer.size())
+		fits_write_key(fitsptr, TSTRING, "OBSERVER", (void*)nfobj_->observer.c_str(), "observer name", &status);
+	if (nfobj_->obstype.size())
+		fits_write_key(fitsptr, TSTRING, "OBSTYPE",  (void*)nfobj_->obstype.c_str(), "observation type", &status);
+	if (nfobj_->grid_id.size())
+		fits_write_key(fitsptr, TSTRING, "GRID_ID",  (void*)nfobj_->grid_id.c_str(), "grid id", &status);
+	if (nfobj_->field_id.size())
+		fits_write_key(fitsptr, TSTRING, "FIELD_ID", (void*)nfobj_->field_id.c_str(), "sky field id", &status);
+	if (nfobj_->objname.size())
+		fits_write_key(fitsptr, TSTRING, "OBJNAME",  (void*)nfobj_->objname, "object name", &status);
+	if (nfobj_->runname.size())
+		fits_write_key(fitsptr, TSTRING, "RUN_NAME", (void*)nfobj_->runname, "object name in this run", &status);
+	if (valid_ra(nfobj_->ra) && valid_dec(nfobj_->dec)) {
+		fits_write_key(fitsptr, TDOUBLE, "RA",    &nfobj_->ra,    "RA of field center", &status);
+		fits_write_key(fitsptr, TDOUBLE, "DEC",   &nfobj_->dec,   "DEC of field center", &status);
+		fits_write_key(fitsptr, TDOUBLE, "EPOCH", &nfobj_->epoch, "epoch of center position", &status);
+	}
+	if (valid_ra(nfobj_->objra) && valid_dec(nfobj_->objdec)) {
+		fits_write_key(fitsptr, TDOUBLE, "OBJRA",    &nfobj_->objra,    "object RA", &status);
+		fits_write_key(fitsptr, TDOUBLE, "OBJDEC",   &nfobj_->objdec,   "object DEC", &status);
+		fits_write_key(fitsptr, TDOUBLE, "OBJEPOCH", &nfobj_->objepoch, "epoch of object position", &status);
+	}
+	if (nfobj_->objerror.size())
+		fits_write_key(fitsptr, TSTRING, "OBJERR",   (void*)nfobj_->objerror.c_str(), "error bar of position", &status);
+	if (nfobj_->priority > 0)
+		fits_write_key(fitsptr, TINT,    "PRIORITY", &nfobj_->priority, "plan priority", &status);
+	if (nfobj_->begin_time.size())
+		fits_write_key(fitsptr, TSTRING, "BEGIN_T", (void*)nfobj_->begin_time.c_str(), "expected begin time", &status);
+	if (nfobj_->end_time.size())
+		fits_write_key(fitsptr, TSTRING, "END_T",   (void*)nfobj_->end_time.c_str(), "expected end time", &status);
+	if (nfcam_->focus > INT_MIN)
+		fits_write_key(fitsptr, TINT,    "TELFOCUS", &nfcam_->focus,    "focus position in micron", &status);
+	if (nfobj_->pair_id >= 0)
+		fits_write_key(fitsptr, TINT,    "PAIR_ID", &nfobj_->pair_id, "pair id", &status);
+
+	tmpint = nfcam_->iloop * nfcam_->frmcnt + nfcam_->ifrm;
+	fits_write_key(fitsptr, TINT, "FRAMENO", &tmpint, "frame number in sequence", &status);
+	/* 4: FITS头: 观测设备参数 */
+	fits_write_key(fitsptr, TSTRING, "GROUP_ID", (void*)param_->gid.c_str(),     "group id",                        &status);
+	fits_write_key(fitsptr, TSTRING, "UNIT_ID",  (void*)param_->uid.c_str(),     "unit id",                         &status);
+	fits_write_key(fitsptr, TSTRING, "CAM_ID",   (void*)param_->cid.c_str(),     "camera id",                       &status);
+	fits_write_key(fitsptr, TSTRING, "READPORT", (void*)nfdev->ReadPort.c_str(), "Readout Port",                    &status);
+	fits_write_key(fitsptr, TSTRING, "READRATE", (void*)nfdev->ReadRate.c_str(), "Readout Rate",                    &status);
+	fits_write_key(fitsptr, TFLOAT,  "GAIN",     &nfdev->gain,                   "PreAmp Gain",                     &status);
+	fits_write_key(fitsptr, TFLOAT,  "VSSPD",    &nfdev->VSRate,                 "line transfer rate in micro-sec", &status);
+	fits_write_key(fitsptr, TFLOAT,  "TEMPSET",  &nfdev->coolerSet,              "temperature setpoint",            &status);
+	fits_write_key(fitsptr, TFLOAT,  "TEMPDET",  &nfdev->coolerGet,              "actual sensor temperature",       &status);
+	if (nfdev->sensorW != nfdev->roi.Width() || nfdev->sensorH != nfdev->roi.Height()) {
+		fits_write_key(fitsptr, TINT, "XORGSUBF", &nfdev->roi.startX, "subregion origin on X axis", &status);
+		fits_write_key(fitsptr, TINT, "YORGSUBF", &nfdev->roi.startY, "subregion origin on Y axis", &status);
+		fits_write_key(fitsptr, TINT, "XBINNING", &nfdev->roi.binX,   "binning factor on X axis",   &status);
+		fits_write_key(fitsptr, TINT, "YBINNING", &nfdev->roi.binY,   "binning factor on Y axis",   &status);
+	}
+	if (nfdev->EMOn) {
+		fits_write_key(fitsptr, TINT, "EGAIN", &nfdev->EMGain, "electronic gain in e- per ADU", &status);
+	}
+	fits_write_key(fitsptr, TFLOAT,  "XPIXSZ",   &nfdev->pixelX, "pixel X in microns", &status);
+	fits_write_key(fitsptr, TFLOAT,  "YPIXSZ",   &nfdev->pixelY, "pixel Y in microns", &status);
+	tmpstr = nfdev->model;
+	if (!nfdev->serialno.empty()) tmpstr = tmpstr + " : " + nfdev->serialno;
+	fits_write_key(fitsptr, TSTRING, "CCDMODEL", (void*)tmpstr.c_str(), "camera model", &status);
+	fits_write_key(fitsptr, TSTRING, "SITENAME", (void*)obsite_->sitename.c_str(), "geo longitude in degrees", &status);
+	fits_write_key(fitsptr, TDOUBLE, "SITELONG", &obsite_->lgt, "geo longitude in degrees", &status);
+	fits_write_key(fitsptr, TDOUBLE, "SITELAT",  &obsite_->lat,  "geo latitude in degrees", &status);
+	fits_write_key(fitsptr, TDOUBLE, "SITEELEV", &obsite_->alt,  "geo altitude in meters", &status);
+	fits_write_key(fitsptr, TINT,    "APTDIA",   &param_->aptdia, "diameter of the telescope in centimeters", &status);
+	fits_write_key(fitsptr, TINT,    "FOCLEN",   &param_->focalen, "focus length in millimeters", &status);
+	fits_write_key(fitsptr, TSTRING, "FOCUS",    (void*)param_->focus.c_str(), "focus type", &status);
+
+	/* 5: 关闭文件 */
+	fits_close_file(fitsptr, &status);
+	if (status) {
+		char txt[200];
+		fits_get_errstatus(status, txt);
+		_gLog.Write(LOG_FAULT, NULL, "failed to save FITS file[%s]: %s", filepath_.filepath.c_str(), txt);
+	}
+	return (status == 0);
 }
 
 /*
@@ -513,14 +632,21 @@ int cameracs::assess_flat() {
  * 将新产生的FITS文件上传到服务器
  */
 void cameracs::upload_file() {
-
+	if (ftcli_.unique()) {
+		FileTransferClient::FileDescPtr fileptr = ftcli_->NewFile();
+		fileptr->tmobs    = to_iso_extended_string(camctl_->GetCameraInfo()->tmobs);
+		fileptr->filename = filepath_.filename;
+		fileptr->subpath  = filepath_.subpath;
+		fileptr->filepath = filepath_.filepath;
+		ftcli_->UploadFile(fileptr);
+	}
 }
 
 /*
  * 显示新产生的FITS图像
  */
 void cameracs::display_image() {
-
+	if (param_->bShowImg) cds9_->DisplayImage(filepath_.filepath.c_str());
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -627,6 +753,7 @@ void cameracs::on_prepare_expose(const long, const long) {
 			_gLog.Write("filter switches to [%s]", nfcam_->filter.c_str());
 		}
 	}
+	nfcam_->expdur = nfobj_->expdur; // 平场可能调整曝光时间
 	// 计算曝光前延时或直接开始曝光
 }
 
@@ -651,9 +778,13 @@ void cameracs::on_complete_expose(const long, const long) {
 		tocont = rslt & 0x10;
 	}
 	if (tosave) {
-		save_fitsfile(); // 保存文件
-		upload_file();   // 上传文件
-		display_image(); // 显示图像
+		++nfcam_->ifrm;
+		create_filepath();
+		if (save_fitsfile()) { // 保存文件
+			nfcam_->filename = filepath_.filename;
+			upload_file();   // 上传文件
+			display_image(); // 显示图像
+		}
 		// 更新工作状态
 		nfcam_->state = CAMCTL_COMPLETE;
 		cv_statchanged_.notify_one();

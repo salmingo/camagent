@@ -12,6 +12,7 @@
 #include "GLog.h"
 #include "cameracs.h"
 #include "parameter.h"
+#include "CDs9.h"
 
 //////////////////////////////////////////////////////////////////////////////
 GLog _gLog(stdout);
@@ -29,8 +30,8 @@ int main(int argc, char **argv) {
 	else {// 常规工作模式
 		Parameter param;
 		param.Load(gConfigPath);
-		if (param.bShowImg) system("ds9&");
-		if (param.bUpdate)  system("mhssvau&");
+		if (param.bShowImg) CDs9::StartDS9();
+//		if (param.bUpdate)  system("mhssvau&");
 
 		boost::asio::io_service ios;
 		boost::asio::signal_set signals(ios, SIGINT, SIGTERM);  // interrupt signal

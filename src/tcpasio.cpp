@@ -1,7 +1,7 @@
 /*
  * @file tcpasio.cpp 定义文件, 基于boost::asio实现TCP通信接口
  */
-
+#include <boost/make_shared.hpp>
 #include <boost/lexical_cast.hpp>
 #include "tcpasio.h"
 

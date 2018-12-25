@@ -18,6 +18,8 @@
 #include "tcpasio.h"
 #include "FilterCtrl.h"
 #include "CameraBase.h"
+#include "CDs9.h"
+#include "FileTransferClient.h"
 
 class cameracs : public MessageQueue {
 public:
@@ -60,6 +62,8 @@ protected:
 	FilePath filepath_;	//< FITS文件路径名
 	NTPPtr   ntp_;		//< NTP服务器控制接口
 	boost::condition_variable cv_statchanged_;	//< 事件: 工作状态发生变化
+	boost::shared_ptr<CDs9> cds9_;		//< ds9访问接口
+	FTClientPtr ftcli_;	//< 文件上传接口
 //////////////////////////////////////////////////////////////////////////////
 	/* 控制接口 */
 	boost::shared_ptr<FilterCtrl> filterctl_;	//< 滤光片控制接口
@@ -204,7 +208,7 @@ protected:
 	/*!
 	 * @brief 保存FITS文件
 	 */
-	void save_fitsfile();
+	bool save_fitsfile();
 	/*!
 	 * @brief 评估平场是否有效
 	 * @return
