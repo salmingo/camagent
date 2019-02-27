@@ -93,6 +93,9 @@ bool cameracs::connect_camera() {
 	}
 		break;
 	case 2:	// FLI CCD
+	{
+
+	}
 		break;
 	case 3:	// ApogeeU CCD
 	{
@@ -101,6 +104,9 @@ bool cameracs::connect_camera() {
 	}
 		break;
 	case 4:	// PI CCD
+	{
+
+	}
 		break;
 	case 5:	// GWAC-GY CCD
 	{
@@ -183,6 +189,7 @@ void cameracs::resolve_filter() {
 		char seps[] = "| ";
 		listring tokens;
 
+		filters_.clear();
 		algorithm::split(tokens, filter, is_any_of(seps), token_compress_on);
 		while(tokens.size()) {
 			string name = tokens.front();
@@ -208,7 +215,7 @@ bool cameracs::exposure_over() {
 	try {// 若设置曝光结束时间
 		ptime tmend = from_iso_extended_string(nfobj_->end_time);
 		ptime now   = second_clock::universal_time();
-		over = (now - tmend).total_seconds() >= 0;
+		over = (now - tmend).total_seconds() > nfobj_->expdur;
 	}
 	catch(...) {}
 	// 当前曝光参数序列已完成
@@ -768,6 +775,7 @@ void cameracs::on_process_expose(const long, const long) {
  * 进入条件: 图像数据已读入内存
  */
 void cameracs::on_complete_expose(const long, const long) {
+	int state = nfcam_->state;
 	/* 1: 处理已完成曝光数据 */
 	bool is_flat = iequals(nfobj_->imgtype, "flat");
 	bool tosave(true), tocont(true);
@@ -787,7 +795,6 @@ void cameracs::on_complete_expose(const long, const long) {
 		}
 		// 更新工作状态
 		nfcam_->state = CAMCTL_COMPLETE;
-		cv_statchanged_.notify_one();
 	}
 
 	/* 2: 启动后续曝光 */
@@ -795,16 +802,16 @@ void cameracs::on_complete_expose(const long, const long) {
 	if (tocont) {
 		if (is_flat) {// 平场: 等待新的曝光指令或重新定位
 			nfcam_->state = tosave ? CAMCTL_WAIT_FLAT : CAMCTL_WAIT_SYNC;
-			cv_statchanged_.notify_one();
 		}
 		else PostMessage(MSG_PREPARE_EXPOSE);
 	}
 	else {
 		bool paused = cmdexp_ == EXPOSE_PAUSE;
 		nfcam_->state = paused ? CAMCTL_PAUSE : CAMCTL_IDLE;
-		cv_statchanged_.notify_one();
 		_gLog.Write("exposure sequence is %s", paused ? "suspend" : "over");
 	}
+	/* 3: 通知工作状态发生变化 */
+	if (state != nfcam_->state) cv_statchanged_.notify_one();
 }
 
 /*

@@ -11,7 +11,7 @@
 #ifndef SRC_CDS9_H_
 #define SRC_CDS9_H_
 
-#include <xpa/xpa.h>
+#include <xpa.h>
 
 class CDs9 {
 public:
