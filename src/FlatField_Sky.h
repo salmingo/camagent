@@ -17,7 +17,7 @@ using namespace boost::posix_time;
 struct FlatField_Sky {
 	int tmin, tmax;	//< 有效曝光时间阈值, 量纲: 秒
 	int fmin, fmax;	//< 有效平场流量阈值, 量纲: 秒
-	int t;			//< 当前曝光时间, 量纲: 秒
+	int expdur;		//< 当前曝光时间, 量纲: 秒
 	bool ampm;		//< 晨昏蒙影判定. 晨光: true
 
 public:
@@ -29,8 +29,8 @@ public:
 	int Start() {
 		ptime loc = second_clock::local_time();
 		ampm = loc.time_of_day().hours() < 12;
-		t = ampm ? tmax : tmin;
-		return t;
+		expdur = ampm ? tmax : tmin;
+		return expdur;
 	}
 
 	/*!
@@ -41,23 +41,31 @@ public:
 	 * 当返回值==0时表示曝光终止
 	 */
 	int Next(int flux) {
-		if ((    ampm && (flux * tmin > t * fmax))  // 晨光: 最短曝光时间的流量超出阈值
-			|| (!ampm && (flux * tmax < t * fmin))) // 蒙影: 最长曝光时间的流量超出阈值
+		if ((    ampm && (flux * tmin > expdur * fmax))  // 晨光: 最短曝光时间的流量超出阈值
+			|| (!ampm && (flux * tmax < expdur * fmin))) // 蒙影: 最长曝光时间的流量超出阈值
 		{// 终止条件
-			t = 0;
-		}
-		else if (ampm) {// 晨光: 当曝光时间大于最短时间时, 增加曝光时间直至获得最大流量
-			/*
-			 * 分支条件:
-			 * 1. flux < fmin: 继续t=tmax
-			 * 2. flux < fmax:
-			 */
+			expdur = 0;
 		}
 		else {
-
+			// 计算可用曝光时间阈值
+			double t0 = (double) expdur / flux;
+			int exptmin = int(fmin * t0 + 1);
+			int exptmax = int(fmax * t0);
+			if (exptmin < tmin) exptmin = tmin;
+			if (exptmax > tmax) exptmax = tmax;
 		}
+//		else if (ampm) {// 晨光: 当曝光时间大于最短时间时, 增加曝光时间直至获得最大流量
+//			/*
+//			 * 分支条件:
+//			 * 1. flux < fmin: 继续t=tmax
+//			 * 2. flux < fmax:
+//			 */
+//		}
+//		else {// 昏影: 当曝光时间...
+//
+//		}
 
-		return t;
+		return expdur;
 	}
 };
 
