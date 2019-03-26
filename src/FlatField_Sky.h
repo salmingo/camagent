@@ -29,7 +29,7 @@ public:
 	int Start() {
 		ptime loc = second_clock::local_time();
 		ampm = loc.time_of_day().hours() < 12;
-		expdur = ampm ? tmax : tmin;
+		expdur = tmin;
 		return expdur;
 	}
 
@@ -41,30 +41,20 @@ public:
 	 * 当返回值==0时表示曝光终止
 	 */
 	int Next(int flux) {
-		if ((    ampm && (flux * tmin > expdur * fmax))  // 晨光: 最短曝光时间的流量超出阈值
-			|| (!ampm && (flux * tmax < expdur * fmin))) // 蒙影: 最长曝光时间的流量超出阈值
-		{// 终止条件
+		double t0 = (double) expdur / flux;
+		int min_et = int(fmin * t0 + 1);
+		int max_et = int(fmax * t0);
+		// 退出条件
+		if ((    ampm && max_et <= tmin)  // 晨光: 最长曝光时间小于阈值
+			|| (!ampm && min_et >= tmax)) { // 昏影: 最短曝光时间长于阈值
 			expdur = 0;
 		}
-		else {
-			// 计算可用曝光时间阈值
-			double t0 = (double) expdur / flux;
-			int exptmin = int(fmin * t0 + 1);
-			int exptmax = int(fmax * t0);
-			if (exptmin < tmin) exptmin = tmin;
-			if (exptmax > tmax) exptmax = tmax;
+		else {// 变更曝光时间
+			if (expdur < min_et || expdur >= max_et) expdur = min_et;
+			else ++expdur;
+			if (expdur < tmin) expdur = tmin;
+			else if (expdur > tmax) expdur = tmax;
 		}
-//		else if (ampm) {// 晨光: 当曝光时间大于最短时间时, 增加曝光时间直至获得最大流量
-//			/*
-//			 * 分支条件:
-//			 * 1. flux < fmin: 继续t=tmax
-//			 * 2. flux < fmax:
-//			 */
-//		}
-//		else {// 昏影: 当曝光时间...
-//
-//		}
-
 		return expdur;
 	}
 };
