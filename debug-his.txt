@@ -1,0 +1,16 @@
+# 2019-06-30
+** ps aux|grep cam显示后台出现两个camagent实例
+1. 无法通过kill、而需要加参数-9以销毁进程
+- 在转换为后台线程前启动日志线程
+
+** 编译时提示错误: expected class-name before ‘{’ token
+  class IOServiceKeep : private boost::noncopyable
+  - #include <boost/noncopyable.hpp>
+  
+ ** 日志不能实时刷新
+ - 调用fflush()
+ 
+ ** 丢失进程终止时最后一条日志
+ - 显式启动和结束日志记录操作
+ - 在结束操作中检查并写入所有未处理日志
+ 

@@ -7,10 +7,12 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <boost/bind.hpp>
-
 #include "daemon.h"
+#include "GLog.h"
 
 #define write_lock(fd, offset, whence, len) lock_reg(fd, F_SETLK, F_WRLCK, offset, whence, len)
 #define FILE_MODE (S_IRWXU | S_IRWXG | S_IRWXO)
@@ -24,24 +26,25 @@ int lock_reg(int fd, int cmd, int type, off_t offset, int whence, off_t len) {
 	return fcntl(fd, cmd, &lock);
 }
 
+/*
+ * 通过访问锁定文件， 判断进程是否已经运行
+ */
 bool isProcSingleton(const char* pidfile) {
 	int fd, val;
 	char buff[20];
 
-	if ((fd = open(pidfile, O_WRONLY | O_CREAT, FILE_MODE)) < 0  // ROOT privilege is required
-			|| write_lock(fd, 0, SEEK_SET, 0) < 0                // process is running or failed to lock PID file
-			|| ftruncate(fd, 0) < 0)                             // failed to access PID file
-		return false;
-	sprintf(buff, "%d\n", getpid());
-	if ((size_t) write(fd, buff, strlen(buff)) != strlen(buff))  // failed to access PID file
-		return false;
-	if ((val = fcntl(fd, F_GETFD, 0)) < 0)                       // F_GETFD failure
-		return false;
-	val |= FD_CLOEXEC;
-	if (fcntl(fd, F_SETFD, val) < 0)                             // F_SETFD failure
-		return false;
-
-	return true;
+	if ((fd = open(pidfile, O_WRONLY | O_CREAT, FILE_MODE)) >= 0 // ROOT privilege
+			&& write_lock(fd, 0, SEEK_SET, 0) >= 0 // failed to lock PID file
+			&& ftruncate(fd, 0) >= 0) { // failed to access PID file
+		sprintf(buff, "%d\n", getpid());
+		if (write(fd, buff, strlen(buff)) == strlen(buff) // access PID file
+				&& (val = fcntl(fd, F_GETFD, 0)) >= 0) { // F_GETFD
+			val |= FD_CLOEXEC;
+			val = fcntl(fd, F_SETFD, val);  // F_SETFD
+			return val >= 0;
+		}
+	}
+	return false;
 }
 
 bool MakeItDaemon(boost::asio::io_service &io_service) {
@@ -69,9 +72,9 @@ bool MakeItDaemon(boost::asio::io_service &io_service) {
 	}
 
 	// close standard I/O
-	close(0);
-	close(1);
-	close(2);
+//	close(0);
+//	close(1);
+//	close(2);
 
 	if (open("/dev/null", O_RDONLY) < 0) {
 		syslog(LOG_ERR | LOG_USER, "Unable to open /dev/null: %m");
