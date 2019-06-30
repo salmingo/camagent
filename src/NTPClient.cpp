@@ -12,7 +12,7 @@
 #include "NTPClient.h"
 #include "GLog.h"
 
-#define JAN_1970			0x83AA7E80
+#define JAN_1970		0x83AA7E80
 #define NTP_PCK_LEN		48
 
 #define NTPFRAC(x)	(4294 * (x) + ((1981 * (x)) >> 11))
@@ -20,10 +20,10 @@
 
 #define LI			0
 #define VN			3
-#define MODE			3
+#define MODE		3
 #define STRATUM		0
-#define POLL			4
-#define PREC			-6
+#define POLL		4
+#define PREC		-6
 #define UINTMAX		4294967295.0
 
 NTPPtr make_ntp(const char* hostIP, const uint16_t port, const int tSync) {
@@ -121,7 +121,7 @@ void NTPClient::thread_body() {
 			if (offset_ >= tSync_ || offset_ <= -tSync_) {
 				if (autoSync_) SynchClock();
 				id = pack.reference_identifier;
-				_gLog.Write(LOG_WARN, NULL, "Clock drifts %.6f seconds. RefSrc=%c%c%c%c. delay=%.3f msecs",
+				_gLog.Write(LOG_WARN, NULL, "Clock drifts %.3f seconds. RefSrc=%c%c%c%c. delay=%.3f msecs",
 						offset_, id[0], id[1], id[2], id[3], delay * 1000);
 			}
 		}

@@ -59,9 +59,10 @@ bool MessageQueue::Start(const char* name) {
 }
 
 void MessageQueue::Stop() {
-	if (thrdmsg_.use_count()) {
+	if (thrdmsg_.unique()) {
 		SendMessage(MSG_QUIT);
 		thrdmsg_->join();
+		thrdmsg_.reset();
 	}
 	if (mq_.unique()) mq_.reset();
 }

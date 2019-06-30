@@ -15,6 +15,7 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 #include <boost/smart_ptr.hpp>
+#include <boost/noncopyable.hpp>
 
 using boost::asio::io_service;
 
@@ -26,18 +27,25 @@ public:
 
 protected:
 	// 数据类型
-	typedef io_service::work work;
+	typedef boost::asio::io_service::work work;
+	typedef boost::shared_ptr<work> workptr;
 	typedef boost::shared_ptr<boost::thread> threadptr;
-
-public:
-	// 属性函数
-	io_service& get_service();
 
 private:
 	// 成员变量
 	io_service ios_;		//< io_service对象
-	boost::shared_ptr<work> work_;	//< io_service守护对象
-	threadptr thrd_keep_;			//< 线程
+	workptr work_;			//< io_service守护对象
+	threadptr thrdkeep_;	//< 线程
+
+public:
+	// 属性函数
+	io_service& GetService();
+
+protected:
+	/*!
+	 * @brief 线程: 运行io_service::run()
+	 */
+	void thread_keep();
 };
 
 #endif /* IOSERVICEKEEP_H_ */

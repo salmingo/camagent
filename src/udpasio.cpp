@@ -21,9 +21,9 @@ UDPSession::UDPSession(const uint16_t portLoc) {
 	bufrcv_.reset(new char[UDP_PACK_SIZE]);
 	bytercv_ = 0;
 	connected_ = false;
-	if (!portLoc) sock_.reset(new udp::socket(keep_.get_service(), udp::v4()));
+	if (!portLoc) sock_.reset(new udp::socket(keep_.GetService(), udp::v4()));
 	else {
-		sock_.reset(new udp::socket(keep_.get_service(), udp::endpoint(udp::v4(), portLoc)));
+		sock_.reset(new udp::socket(keep_.GetService(), udp::endpoint(udp::v4(), portLoc)));
 		start_read();
 	}
 }
@@ -33,7 +33,7 @@ UDPSession::~UDPSession() {
 }
 
 void UDPSession::Connect(const char *ip, const uint16_t port) {
-	udp::resolver resolver(keep_.get_service());
+	udp::resolver resolver(keep_.GetService());
 	udp::resolver::query query(ip, boost::lexical_cast<string>(port));
 	udp::endpoint remote = *(resolver.resolve(query));
 	sock_->async_connect(remote, boost::bind(&UDPSession::handle_connect, this, placeholders::error));

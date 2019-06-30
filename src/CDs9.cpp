@@ -24,7 +24,7 @@ CDs9::~CDs9() {
 bool CDs9::StartDS9() {
 	if (showimg_) return true;
 	char **classes, **names, **methods, **infos;
-	int n = XPANSLookup(NULL, "DS9:ds9", "s", &classes, &names, &methods, &infos);
+	int n = XPANSLookup(NULL, (char*)"DS9:ds9", (char*)"s", &classes, &names, &methods, &infos);
 	if ((showimg_ = n > 0)) {
 		for (int i = 0; i < n; ++i) {
 			free(classes[i]);

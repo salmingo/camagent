@@ -5,13 +5,16 @@ bin_PROGRAMS=camagent
 #				  CameraBase.cpp apgSampleCmn.cpp CameraApogee.cpp CameraAndorCCD.cpp CameraGY.cpp \
 #				  AsciiProtocol.cpp CDs9.cpp \
 #				  FileTransferClient.cpp cameracs.cpp camagent.cpp
-camagent_SOURCES=daemon.cpp GLog.cpp camagent.cpp
+camagent_SOURCES=daemon.cpp GLog.cpp CDs9.cpp MessageQueue.cpp IOServiceKeep.cpp \
+                 NTPClient.cpp FitsHandler.cpp FilterCtrl.cpp FilterCtrlFLI.cpp \
+                 tcpasio.cpp udpasio.cpp CameraBase.cpp \
+                 cameracs.cpp camagent.cpp
 
 #AM_CPPFLAGS=-I/usr/local/include/libapogee-3.0
+AM_CPPFLAGS=-I/usr/local/include
 camagent_LDFLAGS=-L/usr/local/lib
 
 COMM_LIBS=-lpthread -lcurl -lm -lrt -lcfitsio -lxpa
-#BOOST_LIBS=-lboost_system-mt -lboost_thread-mt -lboost_date_time-mt -lboost_chrono-mt -lboost_filesystem-mt
 BOOST_LIBS=-lboost_system -lboost_thread -lboost_date_time -lboost_chrono -lboost_filesystem
 #APOGEE_LIBS=-lapogee
 ANDOR_LIBS=-landor

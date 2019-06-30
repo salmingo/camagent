@@ -14,7 +14,7 @@ TcpCPtr maketcp_client() {// 工厂函数, 创建TcpCPtr
 }
 
 TCPClient::TCPClient()
-	: sock_(keep_.get_service()) {
+	: sock_(keep_.GetService()) {
 	bytercv_ = 0;
 	bufrcv_.reset(new char[TCP_PACK_SIZE]);
 	usebuf_ = false;
@@ -33,7 +33,7 @@ tcp::socket& TCPClient::GetSocket() {
  * @note 同步方式连接服务器
  */
 bool TCPClient::Connect(const string& host, const uint16_t port) {
-	tcp::resolver resolver(keep_.get_service());
+	tcp::resolver resolver(keep_.GetService());
 	tcp::resolver::query query(host, boost::lexical_cast<string>(port));
 	tcp::resolver::iterator itertor = resolver.resolve(query);
 	boost::system::error_code ec;
@@ -46,7 +46,7 @@ bool TCPClient::Connect(const string& host, const uint16_t port) {
  * @note 异步方式连接服务器, 由回调函数监测连接结果
  */
 void TCPClient::AsyncConnect(const string& host, const uint16_t port) {
-	tcp::resolver resolver(keep_.get_service());
+	tcp::resolver resolver(keep_.GetService());
 	tcp::resolver::query query(host, boost::lexical_cast<string>(port));
 	tcp::resolver::iterator itertor = resolver.resolve(query);
 
@@ -238,7 +238,7 @@ TcpSPtr maketcp_server() {// 工厂函数, 创建TcpSPtr
 }
 
 TCPServer::TCPServer()
-	: acceptor_(keep_.get_service()) {
+	: acceptor_(keep_.GetService()) {
 }
 
 TCPServer::~TCPServer() {

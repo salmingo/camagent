@@ -13,12 +13,14 @@
 #ifndef NTPCLIENT_H_
 #define NTPCLIENT_H_
 
+#include <string>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <string>
 #include <boost/thread.hpp>
 #include <boost/smart_ptr.hpp>
+
+using std::string;
 
 class NTPClient {
 public:
@@ -108,7 +110,7 @@ protected:
 	/* 声明成员变量 */
 	boost::mutex mtx_;		//< 互斥区
 	threadptr    thrd_;		//< 线程指针
-	std::string  host_;		//< NTP服务器的IPv4地址
+	string       host_;		//< NTP服务器的IPv4地址
 	uint16_t     port_;		//< NTP服务器的端口
 	int          sock_;		//< SOCKET套接字
 	carray       pack_;		//< 网络交互信息

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<date>20190630T041640</date>
+<Camera>
+    <Terminal Type="JFoV"/>
+    <!--Camera Type#1: Andor CCD-->
+    <!--Camera Type#2: FLI CCD-->
+    <!--Camera Type#3: Apogee CCD-->
+    <!--Camera Type#4: PI CCD-->
+    <!--Camera Type#5: GWAC-GY CCD-->
+    <Camera Type="5"/>
+    <IPAddress>172.28.4.11</IPAddress>
+    <Read ADChannel="0" Port="0" Rate="0" Gain="0"/>
+    <VerticalShift Rate="0"/>
+    <EM Enable="false" Gain="10"/>
+    <Cooler Set="-40"/>
+    <ReverseSaturation>600</ReverseSaturation>
+</Camera>
+<Filter Enable="false" SlotNumber="5">
+    <#1 Name="U"/>
+    <#2 Name="B"/>
+    <#3 Name="V"/>
+    <#4 Name="R"/>
+    <#5 Name="I"/>
+</Filter>
+<Optics Name="GWAC">
+    <Diameter>18</Diameter>
+    <Focus Type="Refractor" Length="216"/>
+</Optics>
+<LocalStorage>
+    <PathRoot>/data</PathRoot>
+    <FreeDiskCapacity>100</FreeDiskCapacity>
+</LocalStorage>
+<ShowImage Enable="false"/>
+<FlatField>
+    <StatADU Min="20000" Max="45000"/>
+    <Exposure Min="2" Max="15"/>
+</FlatField>
+<NetworkID Group="001" Unit="001" Camera="001"/>
+<GeneralControl IP="127.0.0.1" Port="4013"/>
+<NTP Enable="true" IP="172.28.1.3" MaxClockDiff="100"/>
+<FileServer Enable="true" IP="172.28.1.3" Port="4020"/>

@@ -59,4 +59,30 @@ public:
 	}
 };
 
+/*!
+ * @brief 评估平场图像
+ * @param data 数据存储区
+ * @param w    图像宽度
+ * @param h    图像高度
+ * @return
+ * 平场图像中心区域统计均值
+ * @note
+ * 中心区域定义为图像中心宽高=100像素范围
+ */
+template<class T>
+int asses_flat(T *data, int w, int h) {
+	double sum(0.0);
+	int x1 = w / 2 - 50;
+	int x2 = x1 + 100;
+	int y1 = h / 2 - 50;
+	int y2 = y1 + 100;
+	int n = (x2 - x1) * (y2 - y1);
+	int x, y;
+	T *ptr;
+	for (y = y1, ptr = data + y1 * w; y < y2; ++y, ptr += w) {
+		for (x = x1; x < x2; ++x) sum += ptr[x];
+	}
+	return int(sum / n);
+}
+
 #endif

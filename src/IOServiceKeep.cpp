@@ -11,15 +11,20 @@
 
 IOServiceKeep::IOServiceKeep() {
 	work_.reset(new work(ios_));
-	thrd_keep_.reset(new boost::thread(boost::bind(&io_service::run, &ios_)));
+	thrdkeep_.reset(new boost::thread(boost::bind(&IOServiceKeep::thread_keep, this)));
 }
 
 IOServiceKeep::~IOServiceKeep() {
 	work_.reset();
 	ios_.stop();
-	thrd_keep_->join();
+	thrdkeep_->join();
+	thrdkeep_.reset();
 }
 
-io_service& IOServiceKeep::get_service() {
+io_service& IOServiceKeep::GetService() {
 	return ios_;
+}
+
+void IOServiceKeep::thread_keep() {
+	ios_.run();
 }

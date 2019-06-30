@@ -7,15 +7,16 @@
  * @note
  * 配置参数分为几类:
  *  1. 相机参数
- *  2. 滤光片参数
- *  3. 光学系统参数
- *  4. 本地文件管理
- *  5. 图像显示
- *  6. 平场
- *  7. 网络标志
- *  8. 总控服务器
- *  9. NTP服务器
- * 10. 文件服务器
+ *  2. 独立制冷
+ *  3. 滤光片参数
+ *  4. 光学系统参数
+ *  5. 本地文件管理
+ *  6. 图像显示
+ *  7. 平场
+ *  8. 网络标志
+ *  9. 总控服务器
+ * 10. NTP服务器
+ * 11. 文件服务器
  */
 #ifndef CONFIG_PARAMETER_H_
 #define CONFIG_PARAMETER_H_
@@ -46,8 +47,11 @@ struct ConfigParameter {
 	int vsrate;			//< 行转移速度的档位
 	bool emenable;		//< 启用EM模式
 	int emgain;			//< EM增益
-	int coolset;		//< 制冷温度, 量纲: 摄氏度
 	int tsat;			//< 饱和反转值. 饱和反转后的数值
+	// 相机制冷
+	bool coolalone;		//< 独立控制制冷
+	int coolset;		//< 制冷温度, 量纲: 摄氏度
+	uint coolport;		//< 独立控制制冷时的TCP端口
 	// 滤光片参数
 	bool filenable;	//< 启用滤光片
 	int filn;		//< 滤光片转轮数量
@@ -93,27 +97,30 @@ public:
 
 		// 相机参数
 		proptree::ptree &node1 = pt.add("Camera", "");
-		node1.add("TerminalType", "JFoV");
+		node1.add("Terminal.<xmlattr>.Type", "JFoV");
 		node1.add("<xmlcomment>", "Camera Type#1: Andor CCD");
 		node1.add("<xmlcomment>", "Camera Type#2: FLI CCD");
 		node1.add("<xmlcomment>", "Camera Type#3: Apogee CCD");
 		node1.add("<xmlcomment>", "Camera Type#4: PI CCD");
 		node1.add("<xmlcomment>", "Camera Type#5: GWAC-GY CCD");
-		node1.add("CameraType", 5);
+		node1.add("Camera.<xmlattr>.Type", 5);
 		node1.add("IPAddress", "172.28.4.11");
-		node1.add("ADChannel", 0);
-		node1.add("ReadPort", 0);
-		node1.add("ReadRate", 0);
-		node1.add("Gain", 0);
-		node1.add("VerticalShiftRate", 0);
+		node1.add("Read.<xmlattr>.ADChannel", 0);
+		node1.add("Read.<xmlattr>.Port", 0);
+		node1.add("Read.<xmlattr>.Rate", 0);
+		node1.add("Read.<xmlattr>.Gain", 0);
+		node1.add("VerticalShift.<xmlattr>.Rate", 0);
 		node1.add("EM.<xmlattr>.Enable", false);
 		node1.add("EM.<xmlattr>.Gain", 10);
-		node1.add("CoolerSet", -40.0);
 		node1.add("ReverseSaturation", 600);
+		// 相机制冷
+		pt.add("Cooler.<xmlattr>.Set", -40.0);
+		pt.add("Cooler.<xmlattr>.Alone", false);
+		pt.add("Cooler.<xmlattr>.Port", 4021);
 		// 滤光片参数
 		proptree::ptree &node2 = pt.add("Filter", "");
-		node2.add("Enable", false);
-		node2.add("SlotNumber", 5);
+		node2.add("<xmlattr>.Enable", false);
+		node2.add("<xmlattr>.SlotNumber", 5);
 		node2.add("#1.<xmlattr>.Name", "U");
 		node2.add("#2.<xmlattr>.Name", "B");
 		node2.add("#3.<xmlattr>.Name", "V");
@@ -121,41 +128,37 @@ public:
 		node2.add("#5.<xmlattr>.Name", "I");
 		// 光学系统参数
 		proptree::ptree &node3 = pt.add("Optics", "");
-		node3.add("Name", "GWAC");
-		node3.add("Diameter", 18);
-		node3.add("Focus", "Refractor");
-		node3.add("FocusLen", 216);
+		node3.add("<xmlattr>.Name",         "GWAC");
+		node3.add("Diameter",               18);
+		node3.add("Focus.<xmlattr>.Type",   "Refractor");
+		node3.add("Focus.<xmlattr>.Length", 216);
 		// 本地文件管理
 		proptree::ptree &node4 = pt.add("LocalStorage", "");
-		node4.add("PathRoot", "/data");
+		node4.add("PathRoot",         "/data");
 		node4.add("FreeDiskCapacity", 100);
 		// 图像是否显示
 		pt.add("ShowImage.<xmlattr>.Enable", false);
 		// 平场
 		proptree::ptree &node5 = pt.add("FlatField", "");
-		node5.add("StatADU.<xmlattr>.Min", 20000);
-		node5.add("StatADU.<xmlattr>.Max", 45000);
+		node5.add("StatADU.<xmlattr>.Min",  20000);
+		node5.add("StatADU.<xmlattr>.Max",  45000);
 		node5.add("Exposure.<xmlattr>.Min", 2);
 		node5.add("Exposure.<xmlattr>.Max", 15);
 		// 设备在网络中的标志
-		proptree::ptree &node6 = pt.add("NetworkID", "");
-		node6.add("Group", "001");
-		node6.add("Unit", "001");
-		node6.add("Camera", "001");
+		pt.add("NetworkID.<xmlattr>.Group",  "001");
+		pt.add("NetworkID.<xmlattr>.Unit",   "001");
+		pt.add("NetworkID.<xmlattr>.Camera", "001");
 		// 总控服务器
-		proptree::ptree &node7 = pt.add("GeneralControl", "");
-		node7.add("IP", "127.0.0.1");
-		node7.add("Port", 4013);
+		pt.add("GeneralControl.<xmlattr>.IP",   "127.0.0.1");
+		pt.add("GeneralControl.<xmlattr>.Port", 4013);
 		// NTP服务器
-		proptree::ptree &node8 = pt.add("NTP", "");
-		node8.add("Enable", true);
-		node8.add("IP", "172.28.1.3");
-		node8.add("MaxClockDiff", 100);
+		pt.add("NTP.<xmlattr>.Enable",       true);
+		pt.add("NTP.<xmlattr>.IP",           "172.28.1.3");
+		pt.add("NTP.<xmlattr>.MaxClockDiff", 100);
 		// 文件服务器
-		proptree::ptree &node9 = pt.add("FileServer", "");
-		node9.add("Enable", true);
-		node9.add("IP", "172.28.2.11");
-		node9.add("Port", 4020);
+		pt.add("FileServer.<xmlattr>.Enable",  true);
+		pt.add("FileServer.<xmlattr>.IP",      "172.28.2.11");
+		pt.add("FileServer.<xmlattr>.Port",    4020);
 
 		proptree::xml_writer_settings<std::string> settings(' ', 4);
 		write_xml(filepath, pt, std::locale(), settings);
@@ -166,58 +169,73 @@ public:
 		try {
 			proptree::ptree pt;
 			read_xml(filepath, pt, proptree::xml_parser::trim_whitespace);
-			imgshow = pt.get("ShowImage.<xmlattr>.Enable", false);
+
 			BOOST_FOREACH(proptree::ptree::value_type const &child, pt.get_child("")) {
 				if (boost::iequals(child.first, "Camera")) {
-					termType = child.second.get("TerminalType", "JFoV");
-					camType = child.second.get("CameraType", 5);
-					camIP = child.second.get("IPAddress", "172.28.4.11");
-					ADChannel = child.second.get("ADChannel", 0);
-					readport = child.second.get("ReadPort", 0);
-					readrate = child.second.get("ReadRate", 0);
-					gain = child.second.get("Gain", 0);
-					vsrate = child.second.get("VerticalShiftRate", 0);
-					emenable = child.second.get("EM.<xmlattr>.Enable", false);
-					emgain = child.second.get("EM.<xmlattr>.Gain", 10);
-					coolset = child.second.get("CoolerSet", -40.0);
-					tsat = child.second.get("ReverseSaturation", 600);
-				} else if (boost::iequals(child.first, "Filter")) {
+					termType  = child.second.get("Terminal.<xmlattr>.Type",      "JFoV");
+					camType   = child.second.get("Camera.<xmlattr>.Type",        5);
+					camIP     = child.second.get("IPAddress",                    "172.28.4.11");
+					ADChannel = child.second.get("Read.<xmlattr>.ADChannel",     0);
+					readport  = child.second.get("Read.<xmlattr>.Port",          0);
+					readrate  = child.second.get("Read.<xmlattr>.Rate",          0);
+					gain      = child.second.get("Read.<xmlattr>.Gain",          0);
+					vsrate    = child.second.get("VerticalShift.<xmlattr>.Rate", 0);
+					emenable  = child.second.get("EM.<xmlattr>.Enable",          false);
+					emgain    = child.second.get("EM.<xmlattr>.Gain",            10);
+					tsat      = child.second.get("ReverseSaturation",            600);
+				}
+				else if (boost::iequals(child.first, "Cooler")) { // 相机制冷
+					coolalone = child.second.get("<xmlattr>.Alone", false);
+					coolset   = child.second.get("<xmlattr>.Set",   -40.0);
+					coolport  = child.second.get("<xmlattr>.Port",  4021);
+				}
+				else if (boost::iequals(child.first, "Filter")) {
 					boost::format fmt("%d.<xmlattr>.Name");
-					filenable = child.second.get("Enable", false);
-					filn = child.second.get("SlotNumber", 5);
+					filenable = child.second.get("<xmlattr>.Enable",     false);
+					filn      = child.second.get("<xmlattr>.SlotNumber", 5);
 					for (int i = 1; i <= filn; ++i) {
 						fmt % i;
 						string name = child.second.get(fmt.str(), "");
 						filname.push_back(name);
 					}
-				} else if (boost::iequals(child.first, "Optics")) {
-					telescope = child.second.get("Name", "GWAC");
-					aptdia = child.second.get("Diameter", 18);
-					focus = child.second.get("Focus", "Refractor");
-					foclen = child.second.get("FocusLen", 216);
-				} else if (boost::iequals(child.first, "LocalStorage")) {
+				}
+				else if (boost::iequals(child.first, "Optics")) {
+					telescope = child.second.get("<xmlattr>.Name",         "GWAC");
+					aptdia    = child.second.get("Diameter",               18);
+					focus     = child.second.get("Focus.<xmlattr>.Type",   "Refractor");
+					foclen    = child.second.get("Focus.<xmlattr>.Length", 216);
+				}
+				else if (boost::iequals(child.first, "LocalStorage")) {
 					pathroot = child.second.get("PathRoot", "/data");
 					fdmin = child.second.get("FreeDiskCapacity", 100);
-				} else if (boost::iequals(child.first, "FlatField")) {
+				}
+				else if (boost::iequals(child.first, "FlatField")) {
 					ffminv = child.second.get("StatADU.<xmlattr>.Min", 20000);
 					ffmaxv = child.second.get("StatADU.<xmlattr>.Max", 45000);
 					ffmint = child.second.get("Exposure.<xmlattr>.Min", 2);
 					ffmaxt = child.second.get("Exposure.<xmlattr>.Max", 15);
-				} else if (boost::iequals(child.first, "NetworkID")) {
-					gid = child.second.get("Group", "001");
-					uid = child.second.get("Unit", "001");
-					cid = child.second.get("Camera", "001");
-				} else if (boost::iequals(child.first, "GeneralControl")) {
-					gcip = child.second.get("IP", "127.0.0.1");
-					gcport = child.second.get("Port", 4013);
-				} else if (boost::iequals(child.first, "NTP")) {
-					ntpenable = child.second.get("Enable", true);
-					ntpip = child.second.get("IP", "172.28.1.3");
-					ntpdiff = child.second.get("MaxClockDiff", 100);
-				} else if (boost::iequals(child.first, "FileServer")) {
-					fsenable = child.second.get("Enable", true);
-					fsip = child.second.get("IP", "172.28.2.11");
-					fsport = child.second.get("Port", 4020);
+				}
+				else if (boost::iequals(child.first, "NetworkID")) {
+					gid = child.second.get("<xmlattr>.Group",  "001");
+					uid = child.second.get("<xmlattr>.Unit",   "001");
+					cid = child.second.get("<xmlattr>.Camera", "001");
+				}
+				else if (boost::iequals(child.first, "GeneralControl")) {
+					gcip   = child.second.get("<xmlattr>.IP",   "127.0.0.1");
+					gcport = child.second.get("<xmlattr>.Port", 4013);
+				}
+				else if (boost::iequals(child.first, "NTP")) {
+					ntpenable = child.second.get("<xmlattr>.Enable",       true);
+					ntpip     = child.second.get("<xmlattr>.IP",           "172.28.1.3");
+					ntpdiff   = child.second.get("<xmlattr>.MaxClockDiff", 100);
+				}
+				else if (boost::iequals(child.first, "FileServer")) {
+					fsenable = child.second.get("<xmlattr>.Enable", true);
+					fsip     = child.second.get("<xmlattr>.IP",     "172.28.2.11");
+					fsport   = child.second.get("<xmlattr>.Port",   4020);
+				}
+				else if (boost::iequals(child.first, "ShowImage")) {
+					imgshow = child.second.get("<xmlattr>.Enable", false);
 				}
 			}
 

@@ -102,8 +102,11 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_camagent_OBJECTS = daemon.$(OBJEXT) GLog.$(OBJEXT) \
-	camagent.$(OBJEXT)
+am_camagent_OBJECTS = daemon.$(OBJEXT) GLog.$(OBJEXT) CDs9.$(OBJEXT) \
+	MessageQueue.$(OBJEXT) IOServiceKeep.$(OBJEXT) \
+	NTPClient.$(OBJEXT) FitsHandler.$(OBJEXT) FilterCtrl.$(OBJEXT) \
+	FilterCtrlFLI.$(OBJEXT) tcpasio.$(OBJEXT) udpasio.$(OBJEXT) \
+	CameraBase.$(OBJEXT) cameracs.$(OBJEXT) camagent.$(OBJEXT)
 camagent_OBJECTS = $(am_camagent_OBJECTS)
 am__DEPENDENCIES_1 =
 camagent_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -125,8 +128,13 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/GLog.Po ./$(DEPDIR)/camagent.Po \
-	./$(DEPDIR)/daemon.Po
+am__depfiles_remade = ./$(DEPDIR)/CDs9.Po ./$(DEPDIR)/CameraBase.Po \
+	./$(DEPDIR)/FilterCtrl.Po ./$(DEPDIR)/FilterCtrlFLI.Po \
+	./$(DEPDIR)/FitsHandler.Po ./$(DEPDIR)/GLog.Po \
+	./$(DEPDIR)/IOServiceKeep.Po ./$(DEPDIR)/MessageQueue.Po \
+	./$(DEPDIR)/NTPClient.Po ./$(DEPDIR)/camagent.Po \
+	./$(DEPDIR)/cameracs.Po ./$(DEPDIR)/daemon.Po \
+	./$(DEPDIR)/tcpasio.Po ./$(DEPDIR)/udpasio.Po
 am__mv = mv -f
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
@@ -278,12 +286,16 @@ top_srcdir = @top_srcdir@
 #				  CameraBase.cpp apgSampleCmn.cpp CameraApogee.cpp CameraAndorCCD.cpp CameraGY.cpp \
 #				  AsciiProtocol.cpp CDs9.cpp \
 #				  FileTransferClient.cpp cameracs.cpp camagent.cpp
-camagent_SOURCES = daemon.cpp GLog.cpp camagent.cpp
+camagent_SOURCES = daemon.cpp GLog.cpp CDs9.cpp MessageQueue.cpp IOServiceKeep.cpp \
+                 NTPClient.cpp FitsHandler.cpp FilterCtrl.cpp FilterCtrlFLI.cpp \
+                 tcpasio.cpp udpasio.cpp CameraBase.cpp \
+                 cameracs.cpp camagent.cpp
+
 
 #AM_CPPFLAGS=-I/usr/local/include/libapogee-3.0
+AM_CPPFLAGS = -I/usr/local/include
 camagent_LDFLAGS = -L/usr/local/lib
 COMM_LIBS = -lpthread -lcurl -lm -lrt -lcfitsio -lxpa
-#BOOST_LIBS=-lboost_system-mt -lboost_thread-mt -lboost_date_time-mt -lboost_chrono-mt -lboost_filesystem-mt
 BOOST_LIBS = -lboost_system -lboost_thread -lboost_date_time -lboost_chrono -lboost_filesystem
 #APOGEE_LIBS=-lapogee
 ANDOR_LIBS = -landor
@@ -376,9 +388,20 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CDs9.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CameraBase.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/FilterCtrl.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/FilterCtrlFLI.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/FitsHandler.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GLog.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/IOServiceKeep.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/MessageQueue.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/NTPClient.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/camagent.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cameracs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemon.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tcpasio.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/udpasio.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -527,9 +550,20 @@ clean: clean-am
 clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/GLog.Po
+		-rm -f ./$(DEPDIR)/CDs9.Po
+	-rm -f ./$(DEPDIR)/CameraBase.Po
+	-rm -f ./$(DEPDIR)/FilterCtrl.Po
+	-rm -f ./$(DEPDIR)/FilterCtrlFLI.Po
+	-rm -f ./$(DEPDIR)/FitsHandler.Po
+	-rm -f ./$(DEPDIR)/GLog.Po
+	-rm -f ./$(DEPDIR)/IOServiceKeep.Po
+	-rm -f ./$(DEPDIR)/MessageQueue.Po
+	-rm -f ./$(DEPDIR)/NTPClient.Po
 	-rm -f ./$(DEPDIR)/camagent.Po
+	-rm -f ./$(DEPDIR)/cameracs.Po
 	-rm -f ./$(DEPDIR)/daemon.Po
+	-rm -f ./$(DEPDIR)/tcpasio.Po
+	-rm -f ./$(DEPDIR)/udpasio.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -575,9 +609,20 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/GLog.Po
+		-rm -f ./$(DEPDIR)/CDs9.Po
+	-rm -f ./$(DEPDIR)/CameraBase.Po
+	-rm -f ./$(DEPDIR)/FilterCtrl.Po
+	-rm -f ./$(DEPDIR)/FilterCtrlFLI.Po
+	-rm -f ./$(DEPDIR)/FitsHandler.Po
+	-rm -f ./$(DEPDIR)/GLog.Po
+	-rm -f ./$(DEPDIR)/IOServiceKeep.Po
+	-rm -f ./$(DEPDIR)/MessageQueue.Po
+	-rm -f ./$(DEPDIR)/NTPClient.Po
 	-rm -f ./$(DEPDIR)/camagent.Po
+	-rm -f ./$(DEPDIR)/cameracs.Po
 	-rm -f ./$(DEPDIR)/daemon.Po
+	-rm -f ./$(DEPDIR)/tcpasio.Po
+	-rm -f ./$(DEPDIR)/udpasio.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
