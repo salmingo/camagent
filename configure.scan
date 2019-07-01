@@ -9,10 +9,6 @@ AC_CONFIG_HEADERS([config.h])
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
-AC_PROG_AWK
-AC_PROG_INSTALL
-AC_PROG_CPP
-AC_PROG_MKDIR_P
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-landor':
@@ -59,7 +55,5 @@ AC_FUNC_FORK
 AC_CHECK_FUNCS([ftruncate gettimeofday memset select socket strerror])
 
 AC_CONFIG_FILES([Makefile
-                 build/Makefile
-                 build/src/Makefile
                  src/Makefile])
 AC_OUTPUT

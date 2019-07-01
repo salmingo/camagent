@@ -221,7 +221,7 @@ public:
 					cid = child.second.get("<xmlattr>.Camera", "001");
 				}
 				else if (boost::iequals(child.first, "GeneralControl")) {
-					gcip   = child.second.get("<xmlattr>.IP",   "127.0.0.1");
+					gcip   = child.second.get("<xmlattr>.IP",   "172.28.1.11");
 					gcport = child.second.get("<xmlattr>.Port", 4013);
 				}
 				else if (boost::iequals(child.first, "NTP")) {
