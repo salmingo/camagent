@@ -244,49 +244,49 @@ public:
 	 * @return
 	 * 成功标志
 	 */
-	bool SetCooler(bool onoff = false, float set = -40.0);
+	bool UpdateCooler(bool onoff = false, float set = -40.0);
 	/*!
 	 * @brief 改变A/D转换通道
 	 * @param index A/D通道索引
 	 * @return
 	 * 成功标志
 	 */
-	bool SetADChannel(uint16_t index);
+	bool UpdateADChannel(uint16_t index);
 	/*!
 	 * @brief 改变读出端口
 	 * @param index 读出端口索引
 	 * @return
 	 * 成功标志
 	 */
-	bool SetReadPort(uint16_t index);
+	bool UpdateReadPort(uint16_t index);
 	/*!
 	 * @brief 改变读出速度
 	 * @param index 读出速度索引
 	 * @return
 	 * 成功标志
 	 */
-	bool SetReadRate(uint16_t index);
+	bool UpdateReadRate(uint16_t index);
 	/*!
 	 * @brief 设置行转移速度
 	 * @param index 行转移速度索引
 	 * @return
 	 * 成功标志
 	 */
-	bool SetVSRate(uint16_t index);
+	bool UpdateVSRate(uint16_t index);
 	/*!
 	 * @brief 改变增益
 	 * @param index 增益索引
 	 * @return
 	 * 成功标志
 	 */
-	bool SetGain(uint16_t index);
+	bool UpdateGain(uint16_t index);
 	/*!
 	 * @brief 改变基准偏压, 使得本底图像统计均值为offset
 	 * @param offset 本底平均期望值
 	 * @return
 	 * 成功标志
 	 */
-	bool SetADCOffset(uint16_t offset);
+	bool UpdateADCOffset(uint16_t offset);
 	/*!
 	 * @brief 改变ROI区
 	 * @param xb  X轴合并因子
@@ -296,13 +296,13 @@ public:
 	 * @param w   ROI区宽度
 	 * @param h   ROI区高度
 	 */
-	bool SetROI(int &xb, int &yb, int &x, int &y, int &w, int &h);
+	bool UpdateROI(int &xb, int &yb, int &x, int &y, int &w, int &h);
 	/*!
 	 * @brief 设置相机IP地址
 	 * @return
 	 * 操作结果
 	 */
-	virtual bool SetIP(string const ip, string const mask, string const gw);
+	virtual bool UpdateIP(string const ip, string const mask, string const gw);
 
 /////////////////////////////////////////////////////////////////////////////
 protected:
@@ -316,11 +316,11 @@ protected:
 	/*!
 	 * @brief 继承类实现真正与相机断开连接
 	 */
-	virtual void close_camera() = 0;
+	virtual bool close_camera() = 0;
 	/*!
 	 * @brief 改变制冷状态
 	 */
-	virtual void cooler_onoff(bool &onoff, float &coolset) = 0;
+	virtual bool cooler_onoff(bool &onoff, float &coolset) = 0;
 	/*!
 	 * @brief 采集探测器芯片温度
 	 */
@@ -328,27 +328,27 @@ protected:
 	/*!
 	 * @brief 设置AD通道
 	 */
-	virtual void update_adchannel(uint16_t &index, uint16_t &bitpix) = 0;
+	virtual bool update_adchannel(uint16_t &index, uint16_t &bitpix) = 0;
 	/*!
 	 * @brief 设置读出端口
 	 */
-	virtual void update_readport(uint16_t &index, string &readport) = 0;
+	virtual bool update_readport(uint16_t &index, string &readport) = 0;
 	/*!
 	 * @brief 设置读出速度
 	 */
-	virtual void update_readrate(uint16_t &index, string &readrate) = 0;
+	virtual bool update_readrate(uint16_t &index, string &readrate) = 0;
 	/*!
 	 * @brief 设置行转移速度
 	 */
-	virtual void update_vsrate(uint16_t &index, float &vsrate) = 0;
+	virtual bool update_vsrate(uint16_t &index, float &vsrate) = 0;
 	/*!
 	 * @brief 设置增益
 	 */
-	virtual void update_gain(uint16_t &index, float &gain) = 0;
+	virtual bool update_gain(uint16_t &index, float &gain) = 0;
 	/*!
 	 * @brief 设置A/D基准偏压
 	 */
-	virtual void update_adoffset(uint16_t &index) = 0;
+	virtual bool update_adoffset(uint16_t value) = 0;
 	/*!
 	 * @brief 更新ROI区域
 	 * @param xb  X轴合并因子
@@ -358,7 +358,7 @@ protected:
 	 * @param w   ROI区宽度
 	 * @param h   ROI区高度
 	 */
-	virtual void update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h) = 0;
+	virtual bool update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h) = 0;
 	/*!
 	 * @brief 启动曝光
 	 */
@@ -366,7 +366,7 @@ protected:
 	/*!
 	 * @brief 中止曝光
 	 */
-	virtual void stop_expose() = 0;
+	virtual bool stop_expose() = 0;
 	/*!
 	 * @brief 检测曝光状态
 	 */

@@ -44,7 +44,7 @@ void CameraBase::DisConnect() {
 		}
 		int_thread(thrdexp_);
 		int_thread(thrdcool_);
-		SetCooler(false);
+		UpdateCooler(false);
 		close_camera();
 		nfptr_->connected = false;
 	}
@@ -70,7 +70,7 @@ void CameraBase::RegisterExposeProc(const ExpProcSlot &slot) {
 	cbexp_.connect(slot);
 }
 
-bool CameraBase::SetCooler(bool onoff, float set) {
+bool CameraBase::UpdateCooler(bool onoff, float set) {
 	if (!nfptr_->connected) return false;
 	if (onoff != nfptr_->coolOn || (onoff && set != nfptr_->coolSet)) {
 		cooler_onoff(onoff, set);
@@ -80,28 +80,29 @@ bool CameraBase::SetCooler(bool onoff, float set) {
 	return true;
 }
 
-bool CameraBase::SetADChannel(uint16_t index) {
+bool CameraBase::UpdateADChannel(uint16_t index) {
 	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
 	if (index != nfptr_->iADChannel) {
 		uint16_t bitpix = nfptr_->bitpixel;
-		update_adchannel(index, nfptr_->bitpixel);
-		nfptr_->iADChannel = index;
-		if (bitpix != nfptr_->bitpixel) nfptr_->AllocImageBuffer();
-
+		if (update_adchannel(index, nfptr_->bitpixel)) {
+			nfptr_->iADChannel = index;
+			if (bitpix != nfptr_->bitpixel) nfptr_->AllocImageBuffer();
+		}
 	}
 	return true;
 }
 
-bool CameraBase::SetReadPort(uint16_t index) {
+bool CameraBase::UpdateReadPort(uint16_t index) {
 	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
 	if (index != nfptr_->iReadPort) {
-		update_readport(index, nfptr_->readport);
-		nfptr_->iReadPort = index;
+		if (update_readport(index, nfptr_->readport)) {
+			nfptr_->iReadPort = index;
+		}
 	}
 	return true;
 }
 
-bool CameraBase::SetReadRate(uint16_t index) {
+bool CameraBase::UpdateReadRate(uint16_t index) {
 	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
 	if (index != nfptr_->iReadRate) {
 		update_readrate(index, nfptr_->readrate);
@@ -110,7 +111,7 @@ bool CameraBase::SetReadRate(uint16_t index) {
 	return true;
 }
 
-bool CameraBase::SetVSRate(uint16_t index) {
+bool CameraBase::UpdateVSRate(uint16_t index) {
 	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
 	if (index != nfptr_->iVSRate) {
 		update_vsrate(index, nfptr_->vsrate);
@@ -119,7 +120,7 @@ bool CameraBase::SetVSRate(uint16_t index) {
 	return true;
 }
 
-bool CameraBase::SetGain(uint16_t index) {
+bool CameraBase::UpdateGain(uint16_t index) {
 	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
 	if (index != nfptr_->iGain) {
 		update_gain(index, nfptr_->gain);
@@ -128,13 +129,13 @@ bool CameraBase::SetGain(uint16_t index) {
 	return true;
 }
 
-bool CameraBase::SetADCOffset(uint16_t offset) {
+bool CameraBase::UpdateADCOffset(uint16_t offset) {
 	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
 	update_adoffset(offset);
 	return true;
 }
 
-bool CameraBase::SetROI(int &xb, int &yb, int &x, int &y, int &w, int &h) {
+bool CameraBase::UpdateROI(int &xb, int &yb, int &x, int &y, int &w, int &h) {
 	if (!nfptr_->connected || nfptr_->state != CAMERA_IDLE) return false;
 	/* 检查: 参数有效性 */
 	int x1, y1, res;
@@ -165,10 +166,10 @@ bool CameraBase::SetROI(int &xb, int &yb, int &x, int &y, int &w, int &h) {
 	nfptr_->roi.height = h;
 	nfptr_->AllocImageBuffer();
 
-	return false;
+	return true;
 }
 
-bool CameraBase::SetIP(string const ip, string const mask, string const gw) {
+bool CameraBase::UpdateIP(string const ip, string const mask, string const gw) {
 	return (nfptr_->connected && nfptr_->state == CAMERA_IDLE);
 }
 

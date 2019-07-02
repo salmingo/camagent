@@ -28,6 +28,8 @@ public:
 protected:
 	// 成员变量
 	boost::property_tree::ptree xmlpt_;	//< 相机参数访问接口. 相机参数存入XML配置文件中
+	int shtropening_;	//< 快门打开时间, 量纲: 毫秒
+	int shtrclosing_;	//< 快门关闭时间, 量纲: 毫秒
 
 protected:
 	/* 基类定义的虚函数 */
@@ -40,7 +42,7 @@ protected:
 	/*!
 	 * @brief 继承类实现真正与相机断开连接
 	 */
-	void close_camera();
+	bool close_camera();
 	/*!
 	 * @brief 更新ROI区域
 	 * @param xb  X轴合并因子
@@ -50,11 +52,11 @@ protected:
 	 * @param w   ROI区宽度
 	 * @param h   ROI区高度
 	 */
-	void update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h);
+	bool update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h);
 	/*!
 	 * @brief 改变制冷状态
 	 */
-	void cooler_onoff(float &coolset, bool &onoff);
+	bool cooler_onoff(float &coolset, bool &onoff);
 	/*!
 	 * @brief 采集探测器芯片温度
 	 */
@@ -62,27 +64,27 @@ protected:
 	/*!
 	 * @brief 设置AD通道
 	 */
-	void update_adchannel(uint16_t &index, uint16_t &bitpix);
+	bool update_adchannel(uint16_t &index, uint16_t &bitpix);
 	/*!
 	 * @brief 设置读出端口
 	 */
-	void update_readport(uint16_t &index, string &readport);
+	bool update_readport(uint16_t &index, string &readport);
 	/*!
 	 * @brief 设置读出速度
 	 */
-	void update_readrate(uint16_t &index, string &readrate);
+	bool update_readrate(uint16_t &index, string &readrate);
 	/*!
 	 * @brief 设置行转移速度
 	 */
-	void update_vsrate(uint16_t &index, float &vsrate);
+	bool update_vsrate(uint16_t &index, float &vsrate);
 	/*!
 	 * @brief 设置增益
 	 */
-	void update_gain(uint16_t &index, float &gain);
+	bool update_gain(uint16_t &index, float &gain);
 	/*!
 	 * @brief 设置A/D基准偏压
 	 */
-	void update_adoffset(uint16_t &index);
+	bool update_adoffset(uint16_t value);
 	/*!
 	 * @brief 启动曝光
 	 */
@@ -90,7 +92,7 @@ protected:
 	/*!
 	 * @brief 中止曝光
 	 */
-	void stop_expose();
+	bool stop_expose();
 	/*!
 	 * @brief 检测曝光状态
 	 */

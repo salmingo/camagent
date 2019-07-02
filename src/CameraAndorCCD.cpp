@@ -18,11 +18,27 @@ const char andor_conf[] = "/usr/local/etc/andor.xml";	// 相机性能参数列�
 const char andor_dir[]  = "/usr/local/etc/andor";		// 初始化连接的目录
 
 CameraAndorCCD::CameraAndorCCD() {
+	shtropening_ = 50;
+	shtrclosing_ = 50;
 }
 
 CameraAndorCCD::~CameraAndorCCD() {
 }
 
+/*
+ * 使用Andor相机需要调用的功能函数:
+ * 1. 初始化
+ * Initialize(), GetDetector(), GetNumberVSSpeeds(), GetVSSpeed(),
+ * GetHSSpeed(), GetNumberHSSpeed()
+ * 2. 制冷
+ * GetTemperatureRange(), SetTemperature(), CoolerON(), GetTemperature()
+ * 3. 曝光参数
+ * SetAcquisitionMode(), SetReadoutMode(), SetShutter(), SetExposureTime(), SetTriggerMode(),
+ * SetAccumulationCycletime(), SetNumberAccumulations(), SetNumberKinetics(),
+ * SetKineticCycletime(), GetAcquisitiontimings(), SetHSSpeed(), SetVSSpeed()
+ * 4. 其它
+ * 增益； Baseline； Sensor Compensation; EM?
+ */
 bool CameraAndorCCD::open_camera() {
 	if (Initialize((char*) andor_dir) != DRV_SUCCESS) return false;
 	load_parameters();
@@ -30,14 +46,17 @@ bool CameraAndorCCD::open_camera() {
 	return true;
 }
 
-void CameraAndorCCD::close_camera() {
-	ShutDown();
+bool CameraAndorCCD::close_camera() {
+	return DRV_SUCCESS == ShutDown();
 }
 
-void CameraAndorCCD::update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h) {
+bool CameraAndorCCD::update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h) {
+	int active = w * h / xb / yb != nfptr_->sensorW * nfptr_->sensorH ? 1 : 0;
+	return DRV_SUCCESS == SetIsolatedCropModeEx(active, h, w, yb, xb, x, y);
 }
 
-void CameraAndorCCD::cooler_onoff(float &coolset, bool &onoff) {
+bool CameraAndorCCD::cooler_onoff(float &coolset, bool &onoff) {
+	bool cmd = onoff;
 	if (onoff) {
 		int set = int(coolset);
 		int tmin = xmlpt_.get("Cooler.<xmlattr>.min", 0);
@@ -46,9 +65,10 @@ void CameraAndorCCD::cooler_onoff(float &coolset, bool &onoff) {
 		if (set < tmin) set = tmin;
 		else if (set > tmax) set = tmax;
 		if (DRV_SUCCESS == SetTemperature(set)) coolset = float(set);
-		if (DRV_SUCCESS == CoolerON()) onoff = true;
+		onoff = DRV_SUCCESS == CoolerON();
 	}
-	else if (DRV_SUCCESS == CoolerOFF()) onoff = false;
+	else onoff = !(DRV_SUCCESS == CoolerOFF());
+	return cmd == onoff;
 }
 
 float CameraAndorCCD::sensor_temperature() {
@@ -57,39 +77,99 @@ float CameraAndorCCD::sensor_temperature() {
 	return float(val);
 }
 
-void CameraAndorCCD::update_adchannel(uint16_t &index, uint16_t &bitpix) {
-	int pixel;
-
-	if (DRV_SUCCESS == GetBitDepth(0, &pixel)) bitpix = uint16_t(pixel);
-}
-
-void CameraAndorCCD::update_readport(uint16_t &index, string &readport) {
-}
-
-void CameraAndorCCD::update_readrate(uint16_t &index, string &readrate) {
-}
-
-void CameraAndorCCD::update_vsrate(uint16_t &index, float &vsrate) {
-}
-
-void CameraAndorCCD::update_gain(uint16_t &index, float &gain) {
-}
-
-void CameraAndorCCD::update_adoffset(uint16_t &index) {
-}
-
-bool CameraAndorCCD::start_expose(float duration, bool light) {
+bool CameraAndorCCD::update_adchannel(uint16_t &index, uint16_t &bitpix) {
+	uint16_t n = xmlpt_.get("ADChannel.<xmlattr>.number", 0);
+	if (index < n
+		&& DRV_SUCCESS == SetADChannel(index)) {
+		boost::format fmt("ADChannel.#%d.<xmlattr>.value");
+		bitpix = xmlpt_.get(fmt.str(), 0);
+		return true;
+	}
 	return false;
 }
 
-void CameraAndorCCD::stop_expose() {
-	AbortAcquisition();
+bool CameraAndorCCD::update_readport(uint16_t &index, string &readport) {
+	uint16_t n = xmlpt_.get("ReadPort.<xmlattr>.number", 0);
+	if (index < n
+		&& DRV_SUCCESS == SetOutputAmplifier(index)) {
+		boost::format fmt("ReadPort.#%d.<xmlattr>.name");
+		fmt % index;
+		readport = xmlpt_.get(fmt.str(), "");
+		return true;
+	}
+	return false;
+}
+
+bool CameraAndorCCD::update_readrate(uint16_t &index, string &readrate) {
+	boost::format fmt1("ReadRate#%d-%d.<xmlattr>.number");
+	uint16_t n;
+	fmt1 % nfptr_->iADChannel % nfptr_->iReadPort;
+	n = xmlpt_.get(fmt1.str(), 0);
+	if (index < n &&
+		DRV_SUCCESS == SetHSSpeed(nfptr_->iReadPort, index)) {
+		boost::format fmt2("ReadRate#d-%d.#d.<xmlattr>.name");
+		fmt2 % nfptr_->iADChannel % nfptr_->iReadPort % index;
+		readrate = xmlpt_.get(fmt2.str(), "");
+		return true;
+	}
+	return false;
+}
+
+bool CameraAndorCCD::update_vsrate(uint16_t &index, float &vsrate) {
+	uint16_t n = xmlpt_.get("VSRate.<xmlattr>.number", 0);
+	if (index < n
+		&& DRV_SUCCESS == SetVSSpeed(index)) {
+		boost::format fmt("VSRate.#d.<xmlattr>.value");
+		fmt % index;
+		vsrate = xmlpt_.get(fmt.str(), 0.0);
+		return true;
+	}
+	return false;
+}
+
+bool CameraAndorCCD::update_gain(uint16_t &index, float &gain) {
+	boost::format fmt1("PreAmpGain#%d-%d-%d.<xmlattr>.number");
+	uint16_t n;
+	fmt1 % nfptr_->iADChannel % nfptr_->iReadPort % nfptr_->iReadRate;
+	n = xmlpt_.get(fmt1.str(), 0);
+	if (index < n
+		&& DRV_SUCCESS == SetPreAmpGain(index)) {
+		boost::format fmt2("PreAmpGain#%d-%d-%d.#d.<xmlattr>.value");
+		fmt2 % nfptr_->iADChannel % nfptr_->iReadPort % nfptr_->iReadRate % index;
+		gain = xmlpt_.get(fmt2.str(), 0.0);
+		return true;
+	}
+	return false;
+}
+
+bool CameraAndorCCD::update_adoffset(uint16_t value) {
+	value = value / 100 * 100;
+	return DRV_SUCCESS == SetBaselineOffset(value);
+}
+
+bool CameraAndorCCD::start_expose(float duration, bool light) {
+	int mode = light ? 0 : 2;
+	return (   DRV_SUCCESS == SetShutter(1, mode, shtrclosing_, shtropening_)
+			&& DRV_SUCCESS == SetExposureTime(duration)
+			&& DRV_SUCCESS == StartAcquisition());
+}
+
+bool CameraAndorCCD::stop_expose() {
+	return DRV_SUCCESS == AbortAcquisition();
 }
 
 CameraBase::CAMERA_STATUS CameraAndorCCD::camera_state() {
-	CAMERA_STATUS retv(CAMERA_ERROR);
+	int status;
+	if (DRV_SUCCESS != GetStatus(&status)) return CAMERA_ERROR;
+	CAMERA_STATUS oldt(nfptr_->state);
+	CAMERA_STATUS newt(CAMERA_EXPOSE);
 
-	return retv;
+	if (status == DRV_IDLE) {
+		if (oldt == CAMERA_EXPOSE)    newt = CAMERA_IMGRDY;
+	}
+	else if (status != DRV_ACQUIRING) newt = CAMERA_ERROR;
+
+	return newt;
 }
 
 CameraBase::CAMERA_STATUS CameraAndorCCD::download_image() {
@@ -122,20 +202,6 @@ void CameraAndorCCD::load_parameters() {
 	}
 }
 
-/*
- * 使用Andor相机需要调用的功能函数:
- * 1. 初始化
- * Initialize(), GetDetector(), GetHardwareVersion(), GetNumberVSSpeeds(), GetVSSpeed(),
- * GetSoftwareVersion(), GetHSSpeed(), GetNumberHSSpeed()
- * 2. 制冷
- * GetTemperatureRange(), SetTemperature(), CoolerON(), GetTemperature()
- * 3. 曝光参数
- * SetAcquisitionMode(), SetReadoutMode(), SetShutter(), SetExposureTime(), SetTriggerMode(),
- * SetAccumulationCycletime(), SetNumberAccumulations(), SetNumberKinetics(),
- * SetKineticCycletime(), GetAcquisitiontimings(), SetHSSpeed(), SetVSSpeed()
- * 4. 其它
- * 增益； Baseline； Sensor Compensation; EM?
- */
 void CameraAndorCCD::init_parameters() {
 	int nchannel, nAmp;
 
@@ -177,7 +243,7 @@ void CameraAndorCCD::init_parameters() {
 		}
 	}
 
-	{
+	{// 读出端口
 
 	}
 

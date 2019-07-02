@@ -14,3 +14,16 @@
  - 显式启动和结束日志记录操作
  - 在结束操作中检查并写入所有未处理日志
  
+# 2019-07-02
+** CameraBase::SetADChannel与Andor SDK同名函数冲突
+ - CameraBase::SetADChannel更名为: UpdateADChannel
+ 
+** CameraAndorCCD的配置文件中记录快门开关时间，缺省为50/50毫秒。用户需依据相机技术手册修改该值
+ 
+** CameraAndorCCD的配置文件中记录EMCCD配置参数，以及baseline参数
+
+** 考虑添加功能：
+ 1. 重连滤光片
+ 2. 重新加载配置参数
+ 
+
