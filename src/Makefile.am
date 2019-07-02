@@ -2,7 +2,7 @@ bin_PROGRAMS=camagent
 camagent_SOURCES=daemon.cpp GLog.cpp CDs9.cpp MessageQueue.cpp IOServiceKeep.cpp \
                  NTPClient.cpp FitsHandler.cpp FilterCtrl.cpp FilterCtrlFLI.cpp \
                  tcpasio.cpp udpasio.cpp CameraBase.cpp \
-                 CameraAndorCCD.cpp \
+                 CameraAndorCCD.cpp CameraApogee.cpp CameraGY.cpp \
                  cameracs.cpp camagent.cpp
 
 AM_CPPFLAGS=-I/usr/local/include -I/usr/local/include/libapogee-3.0

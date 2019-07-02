@@ -48,6 +48,10 @@ public:
 			return (height / binY);
 		}
 
+		int Pixels() {
+			return Width() * Height();
+		}
+
 		void Reset(int w, int h) {
 			startX = startY = 1;
 			binX = binY = 1;
@@ -95,11 +99,11 @@ public:
 		string errmsg;			//< 错误描述
 
 		/** 曝光参数 **/
-		ROI roi;				//< ROI区
-		float exptm;			//< 积分时间, 量纲: 秒
+		ROI roi;		//< ROI区
+		float exptm;	//< 积分时间, 量纲: 秒
 
 		/** 曝光时标 **/
-		bool ampm;				//< 上下午标志. true: A.M.; false: P.M.
+		bool ampm;		//< 上下午标志. true: A.M.; false: P.M.
 		ptime tmobs;	//< 曝光起始时间
 		ptime tmend;	//< 曝光结束时间
 
@@ -274,12 +278,19 @@ public:
 	 */
 	bool UpdateVSRate(uint16_t index);
 	/*!
-	 * @brief 改变增益
+	 * @brief 改变前置增益
 	 * @param index 增益索引
 	 * @return
 	 * 成功标志
 	 */
 	bool UpdateGain(uint16_t index);
+	/*!
+	 * @brief 改变EM增益
+	 * @param gain 增益
+	 * @return
+	 * 成功标志
+	 */
+	virtual bool UpdateEMGain(uint16_t gain);
 	/*!
 	 * @brief 改变基准偏压, 使得本底图像统计均值为offset
 	 * @param offset 本底平均期望值
@@ -342,7 +353,7 @@ protected:
 	 */
 	virtual bool update_vsrate(uint16_t &index, float &vsrate) = 0;
 	/*!
-	 * @brief 设置增益
+	 * @brief 设置前置增益
 	 */
 	virtual bool update_gain(uint16_t &index, float &gain) = 0;
 	/*!
