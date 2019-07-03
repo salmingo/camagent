@@ -33,7 +33,7 @@ CameraGY::~CameraGY() {
 }
 
 bool CameraGY::SetIP(string const ip, string const mask, string const gw) {
-	if (!CameraBase::SetIP(ip, mask, gw)) return false;
+	if (!CameraBase::UpdateIP(ip, mask, gw)) return false;
 	return (update_network(0x064C, ip.c_str())
 			&& update_network(0x065C, mask.c_str())
 			&& update_network(0x066C, gw.c_str()));

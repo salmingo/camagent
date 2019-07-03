@@ -210,8 +210,9 @@ bool CameraAndorCCD::load_parameters() {
 				nfptr_->serno   = child.second.get("<xmlattr>.serial", "");
 			}
 			else if (boost::iequals(child.first, "Dimension")) {
-				nfptr_->sensorW = child.second.get("<xmlattr>.width",  1024);
-				nfptr_->sensorH = child.second.get("<xmlattr>.height", 1024);
+				int w = child.second.get("<xmlattr>.width",  1024);
+				int h = child.second.get("<xmlattr>.height", 1024);
+				nfptr_->SetSensorDimension(w, h);
 			}
 			else if (boost::iequals(child.first, "Pixel")) {
 				nfptr_->pixelX = child.second.get("<xmlattr>.x", 12.0);
