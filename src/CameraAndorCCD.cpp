@@ -381,4 +381,7 @@ void CameraAndorCCD::init_parameters() {
 		xmlpt_.add("ShutterTime.<xmlattr>.Open",  50);
 		xmlpt_.add("ShutterTime.<xmlattr>.Close", 50);
 	}
+
+	xml_writer_settings<std::string> settings(' ', 4);
+	write_xml(andor_conf, xmlpt_, std::locale(), settings);
 }
