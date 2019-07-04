@@ -66,7 +66,6 @@ public:
 	struct CameraInfo {
 		/** 基本信息 **/
 		string model;		//< 相机型号
-		string serno;		//< 相机序列号
 		int sensorW;		//< 探测器宽度
 		int sensorH;		//< 探测器高度
 		float pixelX;		//< 单像素尺寸, 量纲: 微米
@@ -111,17 +110,6 @@ public:
 		boost::shared_array<uint8_t> data;
 
 	public:
-		/*!
-		 * @brief 设置探测器分辨率
-		 * @param w 宽度
-		 * @param h 高度
-		 */
-		void SetSensorDimension(int w, int h) {
-			sensorW = w;
-			sensorH = h;
-			roi.Reset(w, h);
-		}
-
 		/*!
 		 * @brief 为图像数据分配存储区
 		 * @note

@@ -72,9 +72,9 @@ bool MakeItDaemon(boost::asio::io_service &io_service) {
 	}
 
 	// close standard I/O
-//	close(0);
-//	close(1);
-//	close(2);
+	close(0);
+	close(1);
+	close(2);
 
 	if (open("/dev/null", O_RDONLY) < 0) {
 		syslog(LOG_ERR | LOG_USER, "Unable to open /dev/null: %m");

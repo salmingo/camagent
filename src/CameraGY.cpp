@@ -32,22 +32,11 @@ CameraGY::CameraGY(string const camIP)
 CameraGY::~CameraGY() {
 }
 
-bool CameraGY::SetIP(string const ip, string const mask, string const gw) {
+bool CameraGY::UpdateIP(string const ip, string const mask, string const gw) {
 	if (!CameraBase::UpdateIP(ip, mask, gw)) return false;
 	return (update_network(0x064C, ip.c_str())
 			&& update_network(0x065C, mask.c_str())
 			&& update_network(0x066C, gw.c_str()));
-}
-
-bool CameraGY::SoftwareReboot() {
-	try {
-		reg_write(0x20054, 0x12AB3C4D);
-		return true;
-	}
-	catch(runtime_error &ex) {
-		nfptr_->errmsg = ex.what();
-		return false;
-	}
 }
 
 bool CameraGY::open_camera() {
@@ -112,48 +101,55 @@ bool CameraGY::open_camera() {
 	}
 }
 
-void CameraGY::close_camera() {
-	exit_thread(thrdhb_);
-	exit_thread(thrdread_);
+bool CameraGY::close_camera() {
+	int_thread(thrdhb_);
+	int_thread(thrdread_);
+	return true;
 }
 
-void CameraGY::update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h) {
+bool CameraGY::update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h) {
 	xb = yb = 1;
 	x = y = 1;
 	w = nfptr_->sensorW;
 	h = nfptr_->sensorH;
+	return true;
 }
 
-void CameraGY::cooler_onoff(float &coolset, bool &onoff) {
-	coolset = nfptr_->coolerSet;
+bool CameraGY::cooler_onoff(bool &onoff, float &coolset) {
+	coolset = nfptr_->coolSet;
 	onoff   = true;
+	return true;
 }
 
 float CameraGY::sensor_temperature() {
-	return nfptr_->coolerGet;
+	return nfptr_->CoolGet;
 }
 
-void CameraGY::update_adchannel(uint16_t &index, uint16_t &bitpix) {
+bool CameraGY::update_adchannel(uint16_t &index, uint16_t &bitpix) {
 	index = 0;
 	bitpix= 16;
+	return true;
 }
 
-void CameraGY::update_readport(uint16_t &index, string &readport) {
+bool CameraGY::update_readport(uint16_t &index, string &readport) {
 	index = 0;
 	readport = "Conventional";
+	return true;
 }
 
-void CameraGY::update_readrate(uint16_t &index, string &readrate) {
+bool CameraGY::update_readrate(uint16_t &index, string &readrate) {
 	index    = 0;
 	readrate = "1 MHz";
+	return true;
 }
 
-void CameraGY::update_vsrate(uint16_t &index, float &vsrate) {
+bool CameraGY::update_vsrate(uint16_t &index, float &vsrate) {
 	index = 0;
 	vsrate= 0.0;
+	return true;
 }
 
-void CameraGY::update_gain(uint16_t &index, float &gain) {
+bool CameraGY::update_gain(uint16_t &index, float &gain) {
 	if (index <= 2 && index != gain_) {
 		try {
 			reg_write(0x00020008, index);
@@ -168,9 +164,11 @@ void CameraGY::update_gain(uint16_t &index, float &gain) {
 	else {
 		gain  = gain_ == 0 ? 1.0 : (gain_ == 1 ? 1.5 : 2.0);
 	}
+	return true;
 }
 
-void CameraGY::update_adoffset(uint16_t &index) {
+bool CameraGY::update_adoffset(uint16_t offset) {
+	return true;
 }
 
 bool CameraGY::start_expose(float duration, bool light) {
@@ -203,7 +201,7 @@ bool CameraGY::start_expose(float duration, bool light) {
 	}
 }
 
-void CameraGY::stop_expose() {
+bool CameraGY::stop_expose() {
 	CAMERA_STATUS &state = nfptr_->state;
 
 	if (state >= CAMERA_EXPOSE) {
@@ -217,13 +215,14 @@ void CameraGY::stop_expose() {
 		}
 		cv_imgrdy_.notify_one();
 	}
+	return true;
 }
 
-CAMERA_STATUS CameraGY::camera_state() {
+CameraBase::CAMERA_STATUS CameraGY::camera_state() {
 	return nfptr_->state;
 }
 
-CAMERA_STATUS CameraGY::download_image() {
+CameraBase::CAMERA_STATUS CameraGY::download_image() {
 	boost::mutex tmp;
 	mutex_lock lck(tmp);
 	cv_imgrdy_.wait(lck); // 等待图像就绪标志
@@ -393,14 +392,14 @@ void CameraGY::thread_heartbeat() {
 		}
 	}
 	if (fail == limit && nfptr_->state == CAMERA_IDLE)
-		exproc_(0.0, 0.0, (int) CAMERA_ERROR);
+		cbexp_(0.0, 0.0, (int) CAMERA_ERROR);
 }
 
 void CameraGY::thread_readout() {
 	boost::chrono::milliseconds T1(100), T2(10);
 	CAMERA_STATUS &state = nfptr_->state;
 	ptime &tmobs = nfptr_->tmobs;
-	float &expdur = nfptr_->expdur;
+	float &expdur = nfptr_->exptm;
 	float limit_exp(10.0);	// 曝光无数据延时
 	int64_t limit_read(T2.count());	// 读出无数据延时
 	ptime::time_duration_type td;

@@ -68,7 +68,7 @@ bool CameraAndorCCD::update_roi(int &xb, int &yb, int &x, int &y, int &w, int &h
 	return DRV_SUCCESS == SetIsolatedCropModeEx(active, h, w, yb, xb, x, y);
 }
 
-bool CameraAndorCCD::cooler_onoff(float &coolset, bool &onoff) {
+bool CameraAndorCCD::cooler_onoff(bool &onoff, float &coolset) {
 	bool cmd = onoff;
 	if (onoff) {
 		int set = int(coolset);
@@ -123,7 +123,7 @@ bool CameraAndorCCD::update_readrate(uint16_t &index, string &readrate) {
 	n = xmlpt_.get(fmt1.str(), 0);
 	if (index < n &&
 		DRV_SUCCESS == SetHSSpeed(nfptr_->iReadPort, index)) {
-		boost::format fmt2("ReadRate#d-%d.#d.<xmlattr>.value");
+		boost::format fmt2("ReadRate#%d-%d.#%d.<xmlattr>.value");
 		fmt2 % nfptr_->iADChannel % nfptr_->iReadPort % index;
 		readrate = xmlpt_.get(fmt2.str(), "");
 		return true;
@@ -135,7 +135,7 @@ bool CameraAndorCCD::update_vsrate(uint16_t &index, float &vsrate) {
 	uint16_t n = xmlpt_.get("VSRate.<xmlattr>.number", 0);
 	if (index < n
 		&& DRV_SUCCESS == SetVSSpeed(index)) {
-		boost::format fmt("VSRate.#d.<xmlattr>.value");
+		boost::format fmt("VSRate.#%d.<xmlattr>.value");
 		fmt % index;
 		vsrate = xmlpt_.get(fmt.str(), 0.0);
 		return true;
@@ -146,11 +146,13 @@ bool CameraAndorCCD::update_vsrate(uint16_t &index, float &vsrate) {
 bool CameraAndorCCD::update_gain(uint16_t &index, float &gain) {
 	boost::format fmt1("PreAmpGain#%d-%d-%d.<xmlattr>.number");
 	uint16_t n;
+	bool avail;
+
 	fmt1 % nfptr_->iADChannel % nfptr_->iReadPort % nfptr_->iReadRate;
 	n = xmlpt_.get(fmt1.str(), 0);
 	if (index < n
 		&& DRV_SUCCESS == SetPreAmpGain(index)) {
-		boost::format fmt2("PreAmpGain#%d-%d-%d.#d.<xmlattr>.value");
+		boost::format fmt2("PreAmpGain#%d-%d-%d.#%d.<xmlattr>.value");
 		fmt2 % nfptr_->iADChannel % nfptr_->iReadPort % nfptr_->iReadRate % index;
 		gain = xmlpt_.get(fmt2.str(), 0.0);
 		return true;
@@ -205,9 +207,8 @@ bool CameraAndorCCD::load_parameters() {
 		read_xml(andor_conf, xmlpt_, xml_parser::trim_whitespace);
 		BOOST_FOREACH(ptree::value_type const &child, xmlpt_.get_child("")) {
 			/* 基本参数 */
-			if (boost::iequals(child.first, "Basic")) {
+			if (boost::iequals(child.first, "Camera")) {
 				nfptr_->model   = child.second.get("<xmlattr>.model",  "");
-				nfptr_->serno   = child.second.get("<xmlattr>.serial", "");
 			}
 			else if (boost::iequals(child.first, "Dimension")) {
 				int w = child.second.get("<xmlattr>.width",  1024);
@@ -244,8 +245,7 @@ void CameraAndorCCD::init_parameters() {
 		GetDetector(&nfptr_->sensorW, &nfptr_->sensorH);
 		GetPixelSize(&nfptr_->pixelX, &nfptr_->pixelY);
 
-		xmlpt_.add("Basic.<xmlattr>.model",      str);
-		xmlpt_.add("Basic.<xmlattr>.serial",     (fmt % serial).str());
+		xmlpt_.add("Camera.<xmlattr>.model",     str);
 		xmlpt_.add("Dimension.<xmlattr>.width",  nfptr_->sensorW);
 		xmlpt_.add("Dimension.<xmlattr>.height", nfptr_->sensorH);
 		xmlpt_.add("Pixel.<xmlattr>.x",          nfptr_->pixelX);
@@ -262,7 +262,7 @@ void CameraAndorCCD::init_parameters() {
 	{// A/D通道
 		boost::format fmt("#%d.<xmlattr>.value");
 		int bitpix;
-		ptree node = xmlpt_.add("ADChannel", "");
+		ptree &node = xmlpt_.add("ADChannel", "");
 
 		GetNumberADChannels(&nchannel);
 		node.add("<xmlattr>.number", nchannel);
@@ -274,7 +274,7 @@ void CameraAndorCCD::init_parameters() {
 	}
 
 	{// 读出端口
-		ptree node = xmlpt_.add("ReadPort", "");
+		ptree &node = xmlpt_.add("ReadPort", "");
 		boost::format fmt("#%d.<xmlattr>.name");
 		const int len = 30;
 		char name[len];
@@ -291,16 +291,15 @@ void CameraAndorCCD::init_parameters() {
 	{// 读出速度
 		int ic, ir, i, n;
 		float rate;
-		ptree node;
 		boost::format fmt1("ReadRate#%d-%d");
-		boost::format fmt2("#d.<xmlattr>.value");
+		boost::format fmt2("#%d.<xmlattr>.value");
 		boost::format fmt3("%f MHz");
 
 		for (ic = 0; ic < nchannel; ++ic) {// 遍历AD通道
 			for (ir = 0; ir < nAmp; ++ir) {// 遍历读出端口
 				GetNumberHSSpeeds(ic, ir, &n);
 				fmt1 % ic % ir;
-				node = xmlpt_.add(fmt1.str(), "");
+				ptree &node = xmlpt_.add(fmt1.str(), "");
 				node.add("<xmlattr>.number", n);
 				for (i = 0; i < n; ++i) {// 遍历读出速度
 					GetHSSpeed(ic, ir, i, &rate);
@@ -314,9 +313,8 @@ void CameraAndorCCD::init_parameters() {
 
 	{// 前置增益
 		boost::format fmt1("PreAmpGain#%d-%d-%d");
-		boost::format fmt2("#d.<xmlattr>.avail");
-		boost::format fmt3("#d.<xmlattr>.value");
-		ptree node;
+		boost::format fmt2("#%d.<xmlattr>.avail");
+		boost::format fmt3("#%d.<xmlattr>.value");
 		int nRate, nGain, avail, ic, ip, ir, ig;
 		float gain;
 
@@ -330,7 +328,7 @@ void CameraAndorCCD::init_parameters() {
 				for (ir = 0; ir < nRate; ++ir) {// 遍历: 读出速度
 					SetVSSpeed(ir); // 设置读出速度
 					fmt1 % ic % ip % ir;
-					node = xmlpt_.add(fmt1.str(), "");
+					ptree &node = xmlpt_.add(fmt1.str(), "");
 					for (ig = 0; ig < nGain; ++ig) {// 遍历: 前置增益
 						fmt2 % ig;
 						fmt3 % ig;
@@ -348,7 +346,7 @@ void CameraAndorCCD::init_parameters() {
 		boost::format fmt("#%d.<xmlattr>.value");
 		int n, i;
 		float speed;
-		ptree node = xmlpt_.add("VSRate", "");
+		ptree &node = xmlpt_.add("VSRate", "");
 		// 数量
 		GetNumberVSSpeeds(&n);
 		node.add("<xmlattr>.number", n);

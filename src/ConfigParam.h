@@ -102,12 +102,12 @@ public:
 		node1.add("<xmlcomment>", "Camera Type#3: Apogee CCD");
 		node1.add("<xmlcomment>", "Camera Type#4: PI CCD");
 		node1.add("<xmlcomment>", "Camera Type#5: GWAC-GY CCD");
-		node1.add("Camera.<xmlattr>.Type", 5);
-		node1.add("IPAddress", "172.28.4.11");
+		node1.add("Camera.<xmlattr>.Type",    5);
+		node1.add("IPAddress",                "172.28.4.11");
 		node1.add("Read.<xmlattr>.ADChannel", 0);
-		node1.add("Read.<xmlattr>.Port", 0);
-		node1.add("Read.<xmlattr>.Rate", 0);
-		node1.add("Read.<xmlattr>.Gain", 0);
+		node1.add("Read.<xmlattr>.Port",      0);
+		node1.add("Read.<xmlattr>.Rate",      0);
+		node1.add("Read.<xmlattr>.Gain",      0);
 		node1.add("VerticalShift.<xmlattr>.Rate", 0);
 		node1.add("EM.<xmlattr>.Gain", 10);
 		node1.add("ReverseSaturation", 600);

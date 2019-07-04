@@ -1,40 +1,23 @@
 /*!
- * @file CameraApogee.h Apogee Alta CCD相机控制接口
+ * @file CameraFLICCD.h FLI CCD声明文件
  * @version 0.2
- * @date Apr 9, 2017
+ * @date 2019-07-04
  * @author Xiaomeng Lu
- *
- * @version 0.3
- * @date July 3, 2019
- * @author Xiaomeng Lu
- * @note
- * - 支持Apogee Alta系列USB口和网口相机
  */
 
-#ifndef SRC_CAMERAAPOGEE_H_
-#define SRC_CAMERAAPOGEE_H_
+#ifndef SRC_CAMERAFLICCD_H_
+#define SRC_CAMERAFLICCD_H_
 
-#include <apogee/Alta.h>
-#include <vector>
+#include <libfli.h>
 #include "CameraBase.h"
 
-/////////////////////////////////////////////////////////////////////////////
-std::vector<string> MakeTokens(const string &str, const string &separator);
-string GetItemFromFindStr( const string & msg, const string & item );
-string GetUsbAddress( const string & msg );
-string GetEthernetAddress( const string & msg );
-uint16_t GetID( const string & msg );
-uint16_t GetFrmwrRev( const string & msg );
-/////////////////////////////////////////////////////////////////////////////
-class CameraApogee: public CameraBase {
+class CameraFLICCD: public CameraBase {
 public:
-	CameraApogee();
-	virtual ~CameraApogee();
+	CameraFLICCD();
+	virtual ~CameraFLICCD();
 
 protected:
-	/* 成员变量 */
-	boost::shared_ptr<Alta> altacam_;	//< 相机SDK接口
-	std::vector<uint16_t> data_; 	//< 存储从相机读出的数据
+	flidev_t hcam_;	// 设备句柄
 
 protected:
 	/* 基类定义的虚函数 */
@@ -116,30 +99,13 @@ protected:
 
 protected:
 	/*!
-	 * @brief 尝试搜索Apogee相机
-	 * @return
+	 * @brief 加载相机参数
 	 */
-	bool find_camera();
-	/*!
-	 * @brief 尝试搜索USB连接类型相机
-	 * @return
-	 * 搜索结果
-	 */
-	bool find_camera_usb(string &desc);
-	/*!
-	 * @brief 尝试在局域网内搜索相机
-	 * @return
-	 * 搜索结果
-	 */
-	bool find_camera_lan(string &desc);
+	bool load_parameters();
 	/*!
 	 * @brief 初始化相机参数
 	 */
-	void init_parameters();
-	/*!
-	 * @brief 从配置文件中加载相机参数
-	 */
-	bool load_parameters();
+	bool init_parameters();
 };
 
-#endif /* SRC_CAMERAAPOGEE_H_ */
+#endif /* SRC_CAMERAFLICCD_H_ */

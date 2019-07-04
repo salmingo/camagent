@@ -13,6 +13,18 @@ AC_PROG_CC
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-landor':
 AC_CHECK_LIB([andor], [main])
+# FIXME: Replace `main' with a function in `-lapogee':
+AC_CHECK_LIB([apogee], [main])
+# FIXME: Replace `main' with a function in `-lboost_chrono':
+AC_CHECK_LIB([boost_chrono], [main])
+# FIXME: Replace `main' with a function in `-lboost_date_time':
+AC_CHECK_LIB([boost_date_time], [main])
+# FIXME: Replace `main' with a function in `-lboost_filesystem':
+AC_CHECK_LIB([boost_filesystem], [main])
+# FIXME: Replace `main' with a function in `-lboost_system':
+AC_CHECK_LIB([boost_system], [main])
+# FIXME: Replace `main' with a function in `-lboost_thread':
+AC_CHECK_LIB([boost_thread], [main])
 # FIXME: Replace `main' with a function in `-lcfitsio':
 AC_CHECK_LIB([cfitsio], [main])
 # FIXME: Replace `main' with a function in `-lcurl':
@@ -29,10 +41,11 @@ AC_CHECK_LIB([rt], [main])
 AC_CHECK_LIB([xpa], [main])
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h netdb.h stdlib.h string.h sys/socket.h syslog.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/socket.h syslog.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
+AC_TYPE_INT64_T
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_UINT16_T
@@ -41,7 +54,7 @@ AC_TYPE_UINT8_T
 
 # Checks for library functions.
 AC_FUNC_FORK
-AC_CHECK_FUNCS([ftruncate gettimeofday memset select socket strerror])
+AC_CHECK_FUNCS([ftruncate gettimeofday inet_ntoa memset select socket strerror])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile])

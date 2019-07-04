@@ -71,7 +71,7 @@ protected:
 	/*!
 	 * @brief 改变制冷状态
 	 */
-	bool cooler_onoff(float &coolset, bool &onoff);
+	bool cooler_onoff(bool &onoff, float &coolset);
 	/*!
 	 * @brief 采集探测器芯片温度
 	 */
