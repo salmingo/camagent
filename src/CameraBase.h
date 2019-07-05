@@ -107,7 +107,8 @@ public:
 		ptime tmend;	//< 曝光结束时间
 
 		/** 图像数据存储区 **/
-		boost::shared_array<uint8_t> data;
+		boost::shared_array<uint8_t> data;	//< 图像数据存储区
+		int bytepix;	//< 单像素占用字节数
 
 	public:
 		/*!
@@ -121,7 +122,8 @@ public:
 			int n = bitpixel / 8;
 			if (n * 8 < bitpixel) ++n;
 			if (n > 1 && (n % 2)) ++n;
-			n *= (roi.Width() * roi.Height());
+			bytepix = n;
+			n *= (roi.Pixels());
 			data.reset(new uint8_t[n]);
 		}
 

@@ -17,7 +17,11 @@ public:
 	virtual ~CameraFLICCD();
 
 protected:
+	string   devName_;			//< 相机名称
+	flidomain_t domain_;	//< 连接类型
 	flidev_t hcam_;	// 设备句柄
+	long ulx_, uly_;	//< 感光区左上角坐标. 起点(0,0)
+	long lrx_, lry_;	//< 感光区右下角坐标(边界, 无效)
 
 protected:
 	/* 基类定义的虚函数 */
@@ -99,13 +103,13 @@ protected:
 
 protected:
 	/*!
+	 * @brief 搜索可用的FLI CCD相机
+	 */
+	void find_camera();
+	/*!
 	 * @brief 加载相机参数
 	 */
 	bool load_parameters();
-	/*!
-	 * @brief 初始化相机参数
-	 */
-	bool init_parameters();
 };
 
 #endif /* SRC_CAMERAFLICCD_H_ */

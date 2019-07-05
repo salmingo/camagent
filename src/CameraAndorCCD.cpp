@@ -211,11 +211,10 @@ bool CameraAndorCCD::load_parameters() {
 				nfptr_->model   = child.second.get("<xmlattr>.model",  "");
 			}
 			else if (boost::iequals(child.first, "Dimension")) {
-				int w = child.second.get("<xmlattr>.width",  1024);
-				int h = child.second.get("<xmlattr>.height", 1024);
-				nfptr_->SetSensorDimension(w, h);
+				nfptr_->sensorW = child.second.get("<xmlattr>.width",  1024);
+				nfptr_->sensorH = child.second.get("<xmlattr>.height", 1024);
 			}
-			else if (boost::iequals(child.first, "Pixel")) {
+			else if (boost::iequals(child.first, "PixelSize")) {
 				nfptr_->pixelX = child.second.get("<xmlattr>.x", 12.0);
 				nfptr_->pixelY = child.second.get("<xmlattr>.y", 12.0);
 			}
@@ -248,8 +247,8 @@ void CameraAndorCCD::init_parameters() {
 		xmlpt_.add("Camera.<xmlattr>.model",     str);
 		xmlpt_.add("Dimension.<xmlattr>.width",  nfptr_->sensorW);
 		xmlpt_.add("Dimension.<xmlattr>.height", nfptr_->sensorH);
-		xmlpt_.add("Pixel.<xmlattr>.x",          nfptr_->pixelX);
-		xmlpt_.add("Pixel.<xmlattr>.y",          nfptr_->pixelY);
+		xmlpt_.add("PixelSize.<xmlattr>.x",      nfptr_->pixelX);
+		xmlpt_.add("PixelSize.<xmlattr>.y",      nfptr_->pixelY);
 	}
 
 	{// 制冷范围

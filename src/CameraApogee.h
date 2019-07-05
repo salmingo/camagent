@@ -32,7 +32,13 @@ public:
 	virtual ~CameraApogee();
 
 protected:
-	/* 成员变量 */
+	/*------- 成员变量 -------*/
+	// 以下4项是连接相机时的地址参数
+	string iotype_;		//< 相机接口类型
+	string addr_;		//< 接口地址
+	uint16_t frmwr_;	//< 固件版本
+	uint16_t id_;		//< 相机编号
+
 	boost::shared_ptr<Alta> altacam_;	//< 相机SDK接口
 	std::vector<uint16_t> data_; 	//< 存储从相机读出的数据
 

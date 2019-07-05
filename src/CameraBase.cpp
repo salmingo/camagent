@@ -26,6 +26,7 @@ bool CameraBase::Connect() {
 	nfptr_->state     = CAMERA_IDLE;
 	nfptr_->errcode   = 0;
 	nfptr_->errmsg    = "";
+	nfptr_->roi.Reset(nfptr_->sensorW, nfptr_->sensorH);
 	nfptr_->AllocImageBuffer();
 	thrdcool_.reset(new boost::thread(boost::bind(&CameraBase::thread_cool, this)));
 	thrdexp_.reset(new boost::thread(boost::bind(&CameraBase::thread_expose, this)));

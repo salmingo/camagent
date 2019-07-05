@@ -13,15 +13,15 @@
 #include "CDs9.h"
 #include "cameracs.h"
 
-#include "CameraAndorCCD.h"
+#include "CameraFLICCD.h"
 
 //////////////////////////////////////////////////////////////////////////////
 GLog _gLog;
 
 int main(int argc, char **argv) {
 	if (argc >= 2) {// 处理命令行参数
-		CameraAndorCCD andor;
-		CameraBase *camera = &andor;
+		CameraFLICCD fli;
+		CameraBase *camera = &fli;
 		if (camera->Connect()) {
 			boost::asio::io_service ios;
 			boost::asio::signal_set signals(ios, SIGINT, SIGTERM); // interrupt signal

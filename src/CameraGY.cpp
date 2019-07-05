@@ -89,6 +89,7 @@ bool CameraGY::open_camera() {
 		packsize_ -= (20 + 8 + headsize_);
 		packcnt_ = int(ceil(double(byteimg_ + 64) / packsize_)); // 最后一包多出64字节
 		packflag_.reset(new uint8_t[packcnt_ + 1]);
+
 		// 启动心跳机制, 维护与相机间的网络连接
 		thrdhb_.reset(new boost::thread(boost::bind(&CameraGY::thread_heartbeat, this)));
 		thrdread_.reset(new boost::thread(boost::bind(&CameraGY::thread_readout, this)));

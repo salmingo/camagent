@@ -99,7 +99,8 @@ uint16_t GetFrmwrRev( const string & msg) {
 /////////////////////////////////////////////////////////////////////////////
 
 CameraApogee::CameraApogee() {
-	altacam_ = boost::make_shared<Alta>();
+	frmwr_   = 0;
+	id_      = 0;
 }
 
 CameraApogee::~CameraApogee() {
@@ -110,23 +111,31 @@ bool CameraApogee::open_camera() {
 	if (!load_parameters()) return false;
 
 	try {
+		/*-------------------------------------------------------------------*/
+		/* 尝试连接相机 */
+		altacam_ = boost::make_shared<Alta>();
+		altacam_->OpenConnection(iotype_, addr_, frmwr_, id_);
+		if (!altacam_->IsConnected()) return false;
+		/*-------------------------------------------------------------------*/
+		/* 相机连接后应为IDLE态, 但调试发现可能处于Flusing. 需等待转入IDLE */
 		boost::chrono::seconds duration(1);
-		int count(0);	//< Apogee CCD连接后状态可能不对, 不能启动曝光. 后台建立尝试机制
-		// 相机初始状态为Status_Flushing时, 才可以正确启动曝光流程
+		int count(0);
 		do {// 尝试多次初始化
 			if (count) boost::this_thread::sleep_for(duration);
 			altacam_->Init();
 		} while(++count <= 10 && camera_state() > CAMERA_IDLE);
-
+		/*-------------------------------------------------------------------*/
+		/* 完成最后的初始化 */
 		if (camera_state() == CAMERA_ERROR) {
 			altacam_->CloseConnection();
 			nfptr_->errmsg = "Wrong initial camera status";
 		}
 		else {
-			nfptr_->SetSensorDimension(altacam_->GetMaxImgCols(), altacam_->GetMaxImgRows());
-			data_.resize(nfptr_->roi.Pixels());
+			nfptr_->sensorW = altacam_->GetMaxImgCols();
+			nfptr_->sensorH = altacam_->GetMaxImgRows();
+			data_.resize(nfptr_->sensorW * nfptr_->sensorH);
 		}
-		return altacam_->IsConnected();
+		return true;
 	}
 	catch(runtime_error &ex) {
 		nfptr_->errmsg = ex.what();
@@ -275,29 +284,33 @@ CameraBase::CAMERA_STATUS CameraApogee::download_image() {
 
 bool CameraApogee::find_camera() {
 	string desc;
-	string iotype, addr, port;
-	uint16_t frmwr, id;
-	bool isUsb(false);
+	bool isUsb(false), found(false);
 
 	if ((isUsb = find_camera_usb(desc)) || find_camera_lan(desc)) {
+		found = true;
 		// 解析相机标志字符串
-		iotype= GetItemFromFindStr(desc, "interface=");
-		if (isUsb) addr = GetUsbAddress(desc);
-		else       addr = GetEthernetAddress(desc);
-		id    = GetID(desc);
-		frmwr = GetFrmwrRev(desc);
+		iotype_= GetItemFromFindStr(desc, "interface=");
+		frmwr_ = GetFrmwrRev(desc);
+		id_    = GetID(desc);
+		if (isUsb) addr_ = GetUsbAddress(desc);
+		else       addr_ = GetEthernetAddress(desc);
 		// 记录配置文件
 		ptree pt;
-		pt.add("Interface.<xmlattr>.value", iotype);
-		pt.add("Address.<xmlattr>.value",   addr);
-		pt.add("FrmwrRev.<xmlattr>.value",  frmwr);
-		pt.add("ID.<xmlattr>.value",        id);
+		pt.add("Interface.<xmlattr>.value", iotype_);
+		pt.add("Address.<xmlattr>.value",   addr_);
+		pt.add("FrmwrRev.<xmlattr>.value",  frmwr_);
+		pt.add("ID.<xmlattr>.value",        id_);
+		// 尝试连接相机
+		altacam_ = boost::make_shared<Alta>();
+		altacam_->OpenConnection(iotype_, addr_, frmwr_, id_);
+		if (altacam_->IsConnected()) {
+			altacam_->CloseConnection();
+			pt.add("Camera.<xmlattr>.model", altacam_->GetModel());
+		}
 		xml_writer_settings<string> settings(' ', 4);
 		write_xml(apogee_conf, pt, std::locale(), settings);
-		// 尝试连接相机
-		altacam_->OpenConnection(iotype, addr, frmwr, id);
 	}
-	return altacam_->IsConnected();
+	return found;
 }
 
 bool CameraApogee::find_camera_usb(string &desc) {
@@ -327,12 +340,6 @@ bool CameraApogee::find_camera_lan(string &desc) {
  * 查找相机并初始化参数
  */
 void CameraApogee::init_parameters() {
-	ptree pt;
-	uint16_t id0, id1(0xFFFF);
-	float pixelX, pixelY, gain;
-
-	read_xml(apogee_conf, pt, xml_parser::trim_whitespace);
-	id0 = pt.get("ID.<xmlattr>.value", 0);
 	// 解析相机出厂配置文件
 	string filepath = "/usr/local/etc/Apogee/camera/apnmatrix.txt"; // 厂商配置文件
 	FILE *fp;
@@ -340,18 +347,20 @@ void CameraApogee::init_parameters() {
 	char *token;
 	char seps[] = "\t";
 	int szline(2100), pos(0);
+	uint16_t id(0xFFFF);
+	float pixelX, pixelY, gain;
 
 	if (NULL == (fp = fopen(filepath.c_str(), "r")))
 		return ;
 	line.reset(new char[szline]);
 	fgets(line.get(), szline, fp); // 空读一行
-	while (!feof(fp) && id0 != id1) {
+	while (!feof(fp) && id_ != id) {
 		if (NULL == fgets(line.get(), szline, fp)) continue;
 		pos = 0;
 		token = strtok(line.get(), seps);
 		while (token && ++pos <= 28) {
 			if (pos == 3) {
-				if (id0 != (id1 = uint16_t(atoi(token)))) break;
+				if (id_ != (id = uint16_t(atoi(token)))) break;
 			}
 			else if (pos == 25) pixelX = atof(token);
 			else if (pos == 26) pixelY = atof(token);
@@ -362,40 +371,33 @@ void CameraApogee::init_parameters() {
 	}
 	fclose(fp);
 	// 构建ptree并保存文件
-	pt.add("Camera.<xmlattr>.model",    nfptr_->model  = altacam_->GetModel());
-	pt.add("PixelSize.<xmlattr>.x",     nfptr_->pixelX = pixelX);
-	pt.add("PixelSize.<xmlattr>.y",     nfptr_->pixelY = pixelY);
-	pt.add("Gain.<xmlattr>.value",      nfptr_->gain   = gain);
+	ptree pt;
+	read_xml(apogee_conf, pt, xml_parser::trim_whitespace);
+	pt.add("PixelSize.<xmlattr>.x",  pixelX);
+	pt.add("PixelSize.<xmlattr>.y",  pixelY);
+	pt.add("Gain.<xmlattr>.value",   gain);
 
 	xml_writer_settings<string> settings(' ', 4);
 	write_xml(apogee_conf, pt, std::locale(), settings);
 }
 
 bool CameraApogee::load_parameters() {
-	try {
-		string interface, addr;
-		uint16_t frmwr, id;
-		// 访问配置文件加载参数
+	try {// 访问配置文件加载参数
 		ptree pt;
-
 		read_xml(apogee_conf, pt, xml_parser::trim_whitespace);
+
+		iotype_ = pt.get("Interface.<xmlattr>.value", "");
+		addr_   = pt.get("Address.<xmlattr>.value",   "");
+		frmwr_  = pt.get("FrmwrRev.<xmlattr>.value",  0);
+		id_     = pt.get("ID.<xmlattr>.value",        0);
 		nfptr_->model  = pt.get("Camera.<xmlattr>.model", "");
 		nfptr_->pixelX = pt.get("PixelSize.<xmlattr>.x",  0.0);
 		nfptr_->pixelY = pt.get("PixelSize.<xmlattr>.y",  0.0);
 		nfptr_->gain   = pt.get("Gain.<xmlattr>.value",   0.0);
-		interface = pt.get("Interface.<xmlattr>.value", "usb");
-		addr      = pt.get("Address.<xmlattr>.value",   "");
-		frmwr     = pt.get("FrmwrRev.<xmlattr>.value",  0);
-		id        = pt.get("ID.<xmlattr>.value",        0);
-		// 尝试连接相机
-		altacam_->OpenConnection(interface, addr, frmwr, id);
-		return altacam_->IsConnected();
+		return true;
 	}
 	catch(xml_parser_error &ex) {
-		if (find_camera()) {
-			init_parameters();
-			return true;
-		}
+		if (find_camera()) init_parameters();
 		return false;
 	}
 	catch(runtime_error &ex) {
