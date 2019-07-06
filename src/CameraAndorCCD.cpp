@@ -20,6 +20,7 @@ const char andor_dir[]  = "/usr/local/etc/andor";		// 初始化连接的目录
 CameraAndorCCD::CameraAndorCCD() {
 	shtropening_ = 50;
 	shtrclosing_ = 50;
+	stoppedexp_  = false;
 }
 
 CameraAndorCCD::~CameraAndorCCD() {
@@ -167,25 +168,30 @@ bool CameraAndorCCD::update_adoffset(uint16_t value) {
 
 bool CameraAndorCCD::start_expose(float duration, bool light) {
 	int mode = light ? 0 : 2;
+	stoppedexp_ = false;
 	return (   DRV_SUCCESS == SetShutter(1, mode, shtrclosing_, shtropening_)
 			&& DRV_SUCCESS == SetExposureTime(duration)
 			&& DRV_SUCCESS == StartAcquisition());
 }
 
 bool CameraAndorCCD::stop_expose() {
-	return DRV_SUCCESS == AbortAcquisition();
+	stoppedexp_ = DRV_SUCCESS == AbortAcquisition();
+	return stoppedexp_;
 }
 
 CameraBase::CAMERA_STATUS CameraAndorCCD::camera_state() {
 	int status;
-	if (DRV_SUCCESS != GetStatus(&status)) return CAMERA_ERROR;
-	CAMERA_STATUS oldt(nfptr_->state);
-	CAMERA_STATUS newt(CAMERA_EXPOSE);
-
-	if (status == DRV_IDLE) {
-		if (oldt == CAMERA_EXPOSE)    newt = CAMERA_IMGRDY;
+	CAMERA_STATUS newt(nfptr_->state);
+	if (DRV_SUCCESS != GetStatus(&status))
+		newt = CAMERA_ERROR;
+	else if (status == DRV_IDLE) {
+		if (stoppedexp_)
+			newt = CAMERA_IDLE;
+		else
+			newt = CAMERA_IMGRDY;
 	}
-	else if (status != DRV_ACQUIRING) newt = CAMERA_ERROR;
+	else if (status != DRV_ACQUIRING)
+		newt = CAMERA_ERROR;
 
 	return newt;
 }

@@ -123,7 +123,7 @@ bool CameraGY::cooler_onoff(bool &onoff, float &coolset) {
 }
 
 float CameraGY::sensor_temperature() {
-	return nfptr_->CoolGet;
+	return nfptr_->coolGet;
 }
 
 bool CameraGY::update_adchannel(uint16_t &index, uint16_t &bitpix) {

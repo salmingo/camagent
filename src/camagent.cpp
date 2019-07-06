@@ -13,30 +13,18 @@
 #include "CDs9.h"
 #include "cameracs.h"
 
-#include "CameraFLICCD.h"
-
 //////////////////////////////////////////////////////////////////////////////
 GLog _gLog;
 
 int main(int argc, char **argv) {
 	if (argc >= 2) {// 处理命令行参数
-		CameraFLICCD fli;
-		CameraBase *camera = &fli;
-		if (camera->Connect()) {
-			boost::asio::io_service ios;
-			boost::asio::signal_set signals(ios, SIGINT, SIGTERM); // interrupt signal
-			signals.async_wait(boost::bind(&boost::asio::io_service::stop, &ios));
-
-			ios.run();
-			camera->DisConnect();
+		if (strcmp(argv[1], "-d") == 0) {
+			ConfigParameter cfg;
+			cfg.Init("camagent.xml");
 		}
-//		if (strcmp(argv[1], "-d") == 0) {
-//			ConfigParameter cfg;
-//			cfg.Init("camagent.xml");
-//		}
-//		else {
-//			printf("Usage: camagent <-d>\n");
-//		}
+		else {
+			printf("Usage: camagent <-d>\n");
+		}
 	}
 	else {// 常规工作模式
 		ConfigParameter cfg;

@@ -21,7 +21,18 @@ CameraBase::NFCamPtr CameraBase::GetCameraInfo() {
 bool CameraBase::Connect() {
 	if (IsConnected()) return true;
 	if (!open_camera()) return false;
-
+	/* 初始化相机A/D读出参数, 避免上层应用遗漏导致错误 */
+	nfptr_->iADChannel = 0;
+	update_adchannel(nfptr_->iADChannel, nfptr_->bitpixel);
+	nfptr_->iReadPort  = 0;
+	update_readport(nfptr_->iReadPort,   nfptr_->readport);
+	nfptr_->iReadRate  = 0;
+	update_readport(nfptr_->iReadRate,   nfptr_->readrate);
+	nfptr_->iGain   = 0;
+	update_gain    (nfptr_->iGain,       nfptr_->gain);
+	nfptr_->iVSRate = 0;
+	update_vsrate  (nfptr_->iVSRate,     nfptr_->vsrate);
+	/* 最后的准备工作 */
 	nfptr_->connected = true;
 	nfptr_->state     = CAMERA_IDLE;
 	nfptr_->errcode   = 0;
@@ -189,7 +200,7 @@ void CameraBase::thread_cool() {
 
 	while(1) {
 		boost::this_thread::sleep_for(T);
-		nfptr_->CoolGet = sensor_temperature();
+		nfptr_->coolGet = sensor_temperature();
 	}
 }
 

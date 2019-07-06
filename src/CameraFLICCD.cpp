@@ -30,6 +30,7 @@ bool CameraFLICCD::open_camera() {
 	FLISetHBin(hcam_, 1);
 	FLISetVBin(hcam_, 1);
 	FLISetImageArea(hcam_, ulx_, uly_, lrx_, lry_);
+	FLISetTDI(hcam_, 0, 0);
 	FLIControlBackgroundFlush(hcam_, FLI_BGFLUSH_START);
 
 	return true;
@@ -121,7 +122,16 @@ bool CameraFLICCD::stop_expose() {
 }
 
 CameraBase::CAMERA_STATUS CameraFLICCD::camera_state() {
-	return CAMERA_ERROR;
+	long state, remaining, rslt(0);
+	CAMERA_STATUS status(CAMERA_EXPOSE);
+	rslt |= FLIGetDeviceStatus(hcam_, &state);
+	rslt |= FLIGetExposureStatus(hcam_, &remaining);
+
+	if (rslt) status = CAMERA_ERROR;
+	else if (state == FLI_CAMERA_STATUS_UNKNOWN && remaining == 0) status = CAMERA_IMGRDY;
+	else if (state != FLI_CAMERA_STATUS_UNKNOWN && remaining == 0) status = CAMERA_IDLE;
+
+	return status;
 }
 
 CameraBase::CAMERA_STATUS CameraFLICCD::download_image() {
@@ -166,13 +176,13 @@ void CameraFLICCD::find_camera() {
 		FLIGetVisibleArea(hcam_, &ulx, &uly, &lrx, &lry);
 		pt.add("DevName.<xmlattr>.value",    devName);
 		pt.add("Domain.<xmlattr>.value",     domain);
-		pt.add("Camera.<xmlattr>.model",     model);
-		pt.add("PixelSize.<xmlattr>.x",      x * 1E6); // 米转换为微米
-		pt.add("PixelSize.<xmlattr>.y",      y * 1E6);
 		pt.add("VisibleArea.<xmlattr>.ulx",  ulx);
 		pt.add("VisibleArea.<xmlattr>.uly",  uly);
 		pt.add("VisibleArea.<xmlattr>.lrx",  lrx);
 		pt.add("VisibleArea.<xmlattr>.lry",  lry);
+		pt.add("Camera.<xmlattr>.model",     model);
+		pt.add("PixelSize.<xmlattr>.x",      x * 1E6); // 米转换为微米
+		pt.add("PixelSize.<xmlattr>.y",      y * 1E6);
 		pt.add("Dimension.<xmlattr>.width",  lrx - ulx);
 		pt.add("Dimension.<xmlattr>.height", lry - uly);
 
@@ -188,7 +198,7 @@ bool CameraFLICCD::load_parameters() {
 		ptree pt;
 		read_xml(fliccd_conf, pt, xml_parser::trim_whitespace);
 
-		devName_        = pt.get("Name.<xmlattr>.value",       "");
+		devName_        = pt.get("DevName.<xmlattr>.value",    "");
 		domain_         = pt.get("Domain.<xmlattr>.value",     0);
 		ulx_            = pt.get("VisibleArea.<xmlattr>.ulx",  0);
 		uly_            = pt.get("VisibleArea.<xmlattr>.uly",  0);

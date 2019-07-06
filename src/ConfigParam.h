@@ -100,9 +100,8 @@ public:
 		node1.add("<xmlcomment>", "Camera Type#1: Andor CCD");
 		node1.add("<xmlcomment>", "Camera Type#2: FLI CCD");
 		node1.add("<xmlcomment>", "Camera Type#3: Apogee CCD");
-		node1.add("<xmlcomment>", "Camera Type#4: PI CCD");
-		node1.add("<xmlcomment>", "Camera Type#5: GWAC-GY CCD");
-		node1.add("Camera.<xmlattr>.Type",    5);
+		node1.add("<xmlcomment>", "Camera Type#4: GWAC-GY CCD");
+		node1.add("Camera.<xmlattr>.Type",    4);
 		node1.add("IPAddress",                "172.28.4.11");
 		node1.add("Read.<xmlattr>.ADChannel", 0);
 		node1.add("Read.<xmlattr>.Port",      0);

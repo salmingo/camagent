@@ -30,6 +30,7 @@ protected:
 	boost::property_tree::ptree xmlpt_;	//< 相机参数访问接口. 相机参数存入XML配置文件中
 	int shtropening_;	//< 快门打开时间, 量纲: 毫秒
 	int shtrclosing_;	//< 快门关闭时间, 量纲: 毫秒
+	bool stoppedexp_;	//< 是否调用AbortAcquisition()
 
 public:
 	/*!

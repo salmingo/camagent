@@ -90,7 +90,7 @@ public:
 		/** 制冷 **/
 		bool coolOn;	//< 启用制冷
 		float coolSet;	//< 制冷温度, 量纲: 摄氏度
-		float CoolGet;	//< 探测器温度, 量纲: 摄氏度
+		float coolGet;	//< 探测器温度, 量纲: 摄氏度
 		/** 相机状态 **/
 		bool connected;			//< 与相机连接标志
 		CAMERA_STATUS state;	//< 工作状态

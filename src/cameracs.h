@@ -16,13 +16,16 @@
 #include "NTPClient.h"
 #include "tcpasio.h"
 
+typedef boost::shared_ptr<ConfigParameter> ParamPtr;
+
 class cameracs : public MessageQueue {
 public:
 	cameracs(boost::asio::io_service* ios);
 	virtual ~cameracs();
 
 protected:
-
+	/* 成员变量 */
+	ParamPtr param_;	//< 配置参数
 /////////////////////////////////////////////////////////////////////////////
 public:
 	// 接口函数
