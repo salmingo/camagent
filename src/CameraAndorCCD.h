@@ -47,14 +47,6 @@ public:
 	 */
 	bool UpdateEMGain(uint16_t gain);
 
-public:
-	/*!
-	 * @brief 访问相机配置参数表
-	 * @return
-	 * 以XML树格式存储的相机配置参数
-	 */
-	boost::property_tree::ptree &GetParameters();
-
 protected:
 	/* 基类定义的虚函数 */
 	/*!
