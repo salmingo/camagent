@@ -48,6 +48,10 @@ public:
 			return (height / binY);
 		}
 
+		int Pixels() {
+			return Width() * Height();
+		}
+
 		void Reset(int w, int h) {
 			startX = startY = 1;
 			binX = binY = 1;
@@ -62,7 +66,6 @@ public:
 	struct CameraInfo {
 		/** 基本信息 **/
 		string model;		//< 相机型号
-		string serno;		//< 相机序列号
 		int sensorW;		//< 探测器宽度
 		int sensorH;		//< 探测器高度
 		float pixelX;		//< 单像素尺寸, 量纲: 微米
@@ -87,7 +90,7 @@ public:
 		/** 制冷 **/
 		bool coolOn;	//< 启用制冷
 		float coolSet;	//< 制冷温度, 量纲: 摄氏度
-		float CoolGet;	//< 探测器温度, 量纲: 摄氏度
+		float coolGet;	//< 探测器温度, 量纲: 摄氏度
 		/** 相机状态 **/
 		bool connected;			//< 与相机连接标志
 		CAMERA_STATUS state;	//< 工作状态
@@ -95,29 +98,19 @@ public:
 		string errmsg;			//< 错误描述
 
 		/** 曝光参数 **/
-		ROI roi;				//< ROI区
-		float exptm;			//< 积分时间, 量纲: 秒
+		ROI roi;		//< ROI区
+		float exptm;	//< 积分时间, 量纲: 秒
 
 		/** 曝光时标 **/
-		bool ampm;				//< 上下午标志. true: A.M.; false: P.M.
+		bool ampm;		//< 上下午标志. true: A.M.; false: P.M.
 		ptime tmobs;	//< 曝光起始时间
 		ptime tmend;	//< 曝光结束时间
 
 		/** 图像数据存储区 **/
-		boost::shared_array<uint8_t> data;
+		boost::shared_array<uint8_t> data;	//< 图像数据存储区
+		int bytepix;	//< 单像素占用字节数
 
 	public:
-		/*!
-		 * @brief 设置探测器分辨率
-		 * @param w 宽度
-		 * @param h 高度
-		 */
-		void SetSensorDimension(int w, int h) {
-			sensorW = w;
-			sensorH = h;
-			roi.Reset(w, h);
-		}
-
 		/*!
 		 * @brief 为图像数据分配存储区
 		 * @note
@@ -129,7 +122,8 @@ public:
 			int n = bitpixel / 8;
 			if (n * 8 < bitpixel) ++n;
 			if (n > 1 && (n % 2)) ++n;
-			n *= (roi.Width() * roi.Height());
+			bytepix = n;
+			n *= (roi.Pixels());
 			data.reset(new uint8_t[n]);
 		}
 
@@ -274,12 +268,19 @@ public:
 	 */
 	bool UpdateVSRate(uint16_t index);
 	/*!
-	 * @brief 改变增益
+	 * @brief 改变前置增益
 	 * @param index 增益索引
 	 * @return
 	 * 成功标志
 	 */
 	bool UpdateGain(uint16_t index);
+	/*!
+	 * @brief 改变EM增益
+	 * @param gain 增益
+	 * @return
+	 * 成功标志
+	 */
+	virtual bool UpdateEMGain(uint16_t gain);
 	/*!
 	 * @brief 改变基准偏压, 使得本底图像统计均值为offset
 	 * @param offset 本底平均期望值
@@ -342,7 +343,7 @@ protected:
 	 */
 	virtual bool update_vsrate(uint16_t &index, float &vsrate) = 0;
 	/*!
-	 * @brief 设置增益
+	 * @brief 设置前置增益
 	 */
 	virtual bool update_gain(uint16_t &index, float &gain) = 0;
 	/*!

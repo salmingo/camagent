@@ -26,4 +26,17 @@
  1. 重连滤光片
  2. 重新加载配置参数
  
+# 2019-07-04
+** configure配置项中添加选择是否编译滤光片，是否编译某些相机
 
+** CameraApogee中相机序列号无效, 故从基类中删除序列号
+
+** 测试CameraApogee::Connect()，提示调用了纯虚函数导致错误
+ - 定位: 在退出时发生
+ - 显式调用CameraBase::DisConnect()解决此问题
+ - 隐式调用时时序错误, 导致地址链接至纯虚函数
+ 
+** CameraAndorCCD关闭退出时提示double free
+ - Andor相机的退出机制？
+ - 确认：更新SDK及链接库
+ 

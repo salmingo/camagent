@@ -3,6 +3,8 @@
  */
 
 #include "cameracs.h"
+#include "globaldef.h"
+#include "GLog.h"
 
 cameracs::cameracs(boost::asio::io_service* ios) {
 }
@@ -11,6 +13,19 @@ cameracs::~cameracs() {
 }
 
 bool cameracs::StartService() {
+	param_ = boost::make_shared<ConfigParameter>();
+	if (!param_->Load(gConfigPath)) {
+		_gLog.Write(LOG_FAULT, NULL, "failed to load configured parameters");
+		return false;
+	}
+	if (!connect_camera()) {
+		_gLog.Write(LOG_FAULT, NULL, "failed to connect camera");
+		return false;
+	}
+	if (!connect_filter()) {
+		_gLog.Write(LOG_FAULT, NULL, "failed to connect filter");
+		return false;
+	}
 	return false;
 }
 

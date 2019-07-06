@@ -30,6 +30,22 @@ protected:
 	boost::property_tree::ptree xmlpt_;	//< 相机参数访问接口. 相机参数存入XML配置文件中
 	int shtropening_;	//< 快门打开时间, 量纲: 毫秒
 	int shtrclosing_;	//< 快门关闭时间, 量纲: 毫秒
+	bool stoppedexp_;	//< 是否调用AbortAcquisition()
+
+public:
+	/*!
+	 * @brief 访问相机配置参数表
+	 * @return
+	 * 以XML树格式存储的相机配置参数
+	 */
+	boost::property_tree::ptree &GetParameters();
+	/*!
+	 * @brief 改变EM增益
+	 * @param gain 增益
+	 * @return
+	 * 成功标志
+	 */
+	bool UpdateEMGain(uint16_t gain);
 
 public:
 	/*!
@@ -64,7 +80,7 @@ protected:
 	/*!
 	 * @brief 改变制冷状态
 	 */
-	bool cooler_onoff(float &coolset, bool &onoff);
+	bool cooler_onoff(bool &onoff, float &coolset);
 	/*!
 	 * @brief 采集探测器芯片温度
 	 */
@@ -122,7 +138,7 @@ protected:
 	/*!
 	 * @brief 从文件中加载相机参数
 	 */
-	void load_parameters();
+	bool load_parameters();
 	/*!
 	 * @brief 从相机ROM中读取相机参数并写入文件
 	 */

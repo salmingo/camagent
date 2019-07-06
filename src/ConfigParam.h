@@ -45,7 +45,6 @@ struct ConfigParameter {
 	int readrate;		//< 读出速度的档位
 	int gain;			//< 增益的档位
 	int vsrate;			//< 行转移速度的档位
-	bool emenable;		//< 启用EM模式
 	int emgain;			//< EM增益
 	int tsat;			//< 饱和反转值. 饱和反转后的数值
 	// 相机制冷
@@ -101,16 +100,14 @@ public:
 		node1.add("<xmlcomment>", "Camera Type#1: Andor CCD");
 		node1.add("<xmlcomment>", "Camera Type#2: FLI CCD");
 		node1.add("<xmlcomment>", "Camera Type#3: Apogee CCD");
-		node1.add("<xmlcomment>", "Camera Type#4: PI CCD");
-		node1.add("<xmlcomment>", "Camera Type#5: GWAC-GY CCD");
-		node1.add("Camera.<xmlattr>.Type", 5);
-		node1.add("IPAddress", "172.28.4.11");
+		node1.add("<xmlcomment>", "Camera Type#4: GWAC-GY CCD");
+		node1.add("Camera.<xmlattr>.Type",    4);
+		node1.add("IPAddress",                "172.28.4.11");
 		node1.add("Read.<xmlattr>.ADChannel", 0);
-		node1.add("Read.<xmlattr>.Port", 0);
-		node1.add("Read.<xmlattr>.Rate", 0);
-		node1.add("Read.<xmlattr>.Gain", 0);
+		node1.add("Read.<xmlattr>.Port",      0);
+		node1.add("Read.<xmlattr>.Rate",      0);
+		node1.add("Read.<xmlattr>.Gain",      0);
 		node1.add("VerticalShift.<xmlattr>.Rate", 0);
-		node1.add("EM.<xmlattr>.Enable", false);
 		node1.add("EM.<xmlattr>.Gain", 10);
 		node1.add("ReverseSaturation", 600);
 		// 相机制冷
@@ -149,7 +146,7 @@ public:
 		pt.add("NetworkID.<xmlattr>.Unit",   "001");
 		pt.add("NetworkID.<xmlattr>.Camera", "001");
 		// 总控服务器
-		pt.add("GeneralControl.<xmlattr>.IP",   "127.0.0.1");
+		pt.add("GeneralControl.<xmlattr>.IP",   "172.28.1.11");
 		pt.add("GeneralControl.<xmlattr>.Port", 4013);
 		// NTP服务器
 		pt.add("NTP.<xmlattr>.Enable",       true);
@@ -180,7 +177,6 @@ public:
 					readrate  = child.second.get("Read.<xmlattr>.Rate",          0);
 					gain      = child.second.get("Read.<xmlattr>.Gain",          0);
 					vsrate    = child.second.get("VerticalShift.<xmlattr>.Rate", 0);
-					emenable  = child.second.get("EM.<xmlattr>.Enable",          false);
 					emgain    = child.second.get("EM.<xmlattr>.Gain",            10);
 					tsat      = child.second.get("ReverseSaturation",            600);
 				}
