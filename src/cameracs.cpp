@@ -35,6 +35,14 @@ void cameracs::StopService() {
 
 /////////////////////////////////////////////////////////////////////////////
 /* 建立并维护与硬件设备的连接 */
+bool cameracs::connect_server_gtoaes() {
+	return false;
+}
+
+bool cameracs::connect_server_file() {
+	return false;
+}
+
 bool cameracs::connect_camera() {
 	return false;
 }

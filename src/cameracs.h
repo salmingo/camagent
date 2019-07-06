@@ -42,6 +42,14 @@ public:
 protected:
 	/* 建立并维护与硬件设备的连接 */
 	/*!
+	 * @brief 建立与总控服务器的连接
+	 */
+	bool connect_server_gtoaes();
+	/*!
+	 * @brief 建立与文件服务器的连接
+	 */
+	bool connect_server_file();
+	/*!
 	 * @brief 建立与相机的连接
 	 * @return
 	 * 连接结果
