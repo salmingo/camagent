@@ -25,6 +25,10 @@ CameraAndorCCD::CameraAndorCCD() {
 CameraAndorCCD::~CameraAndorCCD() {
 }
 
+ptree &CameraAndorCCD::GetParameters() {
+	return xmlpt_;
+}
+
 /*
  * 使用Andor相机需要调用的功能函数:
  * 1. 初始化
@@ -107,7 +111,7 @@ bool CameraAndorCCD::update_readrate(uint16_t &index, string &readrate) {
 	n = xmlpt_.get(fmt1.str(), 0);
 	if (index < n &&
 		DRV_SUCCESS == SetHSSpeed(nfptr_->iReadPort, index)) {
-		boost::format fmt2("ReadRate#d-%d.#d.<xmlattr>.name");
+		boost::format fmt2("ReadRate#d-%d.#d.<xmlattr>.value");
 		fmt2 % nfptr_->iADChannel % nfptr_->iReadPort % index;
 		readrate = xmlpt_.get(fmt2.str(), "");
 		return true;
@@ -231,12 +235,12 @@ void CameraAndorCCD::init_parameters() {
 
 	{// A/D通道
 		boost::format fmt("#%d.<xmlattr>.value");
-		int i, bitpix;
+		int bitpix;
 		ptree node = xmlpt_.add("ADChannel", "");
 
 		GetNumberADChannels(&nchannel);
 		node.add("<xmlattr>.number", nchannel);
-		for (i = 0; i < nchannel; ++i) {
+		for (int i = 0; i < nchannel; ++i) {
 			fmt % i;
 			GetBitDepth(i, &bitpix);
 			node.add(fmt.str(), bitpix);
@@ -244,7 +248,72 @@ void CameraAndorCCD::init_parameters() {
 	}
 
 	{// 读出端口
+		ptree node = xmlpt_.add("ReadPort", "");
+		boost::format fmt("#%d.<xmlattr>.name");
+		const int len = 30;
+		char name[len];
 
+		GetNumberAmp(&nAmp);
+		node.add("<xmlattr>.number", nAmp);
+		for (int i = 0; i < nAmp; ++i) {
+			fmt % i;
+			GetAmpDesc(i, name, len);
+			node.add(fmt.str(), name);
+		}
+	}
+
+	{// 读出速度
+		int ic, ir, i, n;
+		float rate;
+		ptree node;
+		boost::format fmt1("ReadRate#%d-%d");
+		boost::format fmt2("#d.<xmlattr>.value");
+		boost::format fmt3("%f MHz");
+
+		for (ic = 0; ic < nchannel; ++ic) {// 遍历AD通道
+			for (ir = 0; ir < nAmp; ++ir) {// 遍历读出端口
+				GetNumberHSSpeeds(ic, ir, &n);
+				fmt1 % ic % ir;
+				node = xmlpt_.add(fmt1.str(), "");
+				node.add("<xmlattr>.number", n);
+				for (i = 0; i < n; ++i) {// 遍历读出速度
+					GetHSSpeed(ic, ir, i, &rate);
+					fmt2 % i;
+					fmt3 % rate;
+					node.add(fmt2.str(), fmt3.str());
+				}
+			}
+		}
+	}
+
+	{// 前置增益
+		boost::format fmt1("ReadRate#%d-%d.<xmlattr>.number");
+		boost::format fmt2("PreAmpGain#%d-%d-%d");
+		boost::format fmt3("#d.<xmlattr>.value");
+		ptree node;
+		int nRate, ic, ir, i, j, n;
+		float gain;
+
+		for (ic = 0; ic < nchannel; ++ic) {// 遍历: AD通道
+			SetADChannel(ic);
+			for (ir = 0; ir < nAmp; ++ir) {// 遍历: 读出端口
+				SetOutputAmplifier(ir);
+				fmt1 % ic % ir;
+				nRate = xmlpt_.get(fmt1.str(), 0);
+				for (i = 0; i < nRate; ++i) {// 遍历: 读出速度
+					SetHSSpeed(ir, i);
+					GetNumberPreAmpGains(&n);
+					fmt2 % ic % ir % i;
+					node = xmlpt_.add(fmt2.str(), "");
+					node.add("<xmlattr>.number", n);
+					for (j = 0; j < n; ++j) {// 遍历: 前置增益
+						GetPreAmpGain(j, &gain);
+						fmt3 % j;
+						node.add(fmt3.str(), gain);
+					}
+				}
+			}
+		}
 	}
 
 	{// 行转移速度
@@ -266,5 +335,10 @@ void CameraAndorCCD::init_parameters() {
 		AndorCapabilities caps;
 		caps.ulSize = sizeof(AndorCapabilities);
 		GetCapabilities(&caps);
+	}
+
+	{// 快门时间
+		xmlpt_.add("ShutterTime.<xmlattr>.Open",  50);
+		xmlpt_.add("ShutterTime.<xmlattr>.Close", 50);
 	}
 }

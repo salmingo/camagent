@@ -1,4 +1,4 @@
-/*
+/*!
  * CameraAndorCCD.h Andor CCD相机的声明文件
  * @date 2015-09-22
  * @version 0.1
@@ -30,6 +30,14 @@ protected:
 	boost::property_tree::ptree xmlpt_;	//< 相机参数访问接口. 相机参数存入XML配置文件中
 	int shtropening_;	//< 快门打开时间, 量纲: 毫秒
 	int shtrclosing_;	//< 快门关闭时间, 量纲: 毫秒
+
+public:
+	/*!
+	 * @brief 访问相机配置参数表
+	 * @return
+	 * 以XML树格式存储的相机配置参数
+	 */
+	boost::property_tree::ptree &GetParameters();
 
 protected:
 	/* 基类定义的虚函数 */
