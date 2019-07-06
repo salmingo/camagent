@@ -30,22 +30,6 @@ ptree &CameraAndorCCD::GetParameters() {
 	return xmlpt_;
 }
 
-<<<<<<< HEAD
-/*
- * 使用Andor相机需要调用的功能函数:
- * 1. 初始化
- * Initialize(), GetDetector(), GetNumberVSSpeeds(), GetVSSpeed(),
- * GetHSSpeed(), GetNumberHSSpeed()
- * 2. 制冷
- * GetTemperatureRange(), SetTemperature(), CoolerON(), GetTemperature()
- * 3. 曝光参数
- * SetAcquisitionMode(), SetReadoutMode(), SetShutter(), SetExposureTime(), SetTriggerMode(),
- * SetAccumulationCycletime(), SetNumberAccumulations(), SetNumberKinetics(),
- * SetKineticCycletime(), GetAcquisitiontimings(), SetHSSpeed(), SetVSSpeed()
- * 4. 其它
- * 增益； Baseline； Sensor Compensation; EM?
- */
-=======
 bool CameraAndorCCD::UpdateEMGain(uint16_t gain) {
 	if (!CameraBase::UpdateEMGain(gain)) return false;
 	if (!(nfptr_->EMCCD && nfptr_->EMOn)) return false;
@@ -62,7 +46,6 @@ bool CameraAndorCCD::UpdateEMGain(uint16_t gain) {
 	return false;
 }
 
->>>>>>> branch 'master' of https://github.com/salmingo/camagent.git
 bool CameraAndorCCD::open_camera() {
 	if (Initialize((char*) andor_dir) != DRV_SUCCESS) return false;
 	if (!load_parameters()) {// 参数加载失败后将初始化配置文件. 初始化后用户需做定制修改
@@ -141,11 +124,7 @@ bool CameraAndorCCD::update_readrate(uint16_t &index, string &readrate) {
 	n = xmlpt_.get(fmt1.str(), 0);
 	if (index < n &&
 		DRV_SUCCESS == SetHSSpeed(nfptr_->iReadPort, index)) {
-<<<<<<< HEAD
-		boost::format fmt2("ReadRate#d-%d.#d.<xmlattr>.value");
-=======
 		boost::format fmt2("ReadRate#%d-%d.#%d.<xmlattr>.value");
->>>>>>> branch 'master' of https://github.com/salmingo/camagent.git
 		fmt2 % nfptr_->iADChannel % nfptr_->iReadPort % index;
 		readrate = xmlpt_.get(fmt2.str(), "");
 		return true;
@@ -288,11 +267,7 @@ void CameraAndorCCD::init_parameters() {
 	{// A/D通道
 		boost::format fmt("#%d.<xmlattr>.value");
 		int bitpix;
-<<<<<<< HEAD
-		ptree node = xmlpt_.add("ADChannel", "");
-=======
 		ptree &node = xmlpt_.add("ADChannel", "");
->>>>>>> branch 'master' of https://github.com/salmingo/camagent.git
 
 		GetNumberADChannels(&nchannel);
 		node.add("<xmlattr>.number", nchannel);
@@ -304,11 +279,7 @@ void CameraAndorCCD::init_parameters() {
 	}
 
 	{// 读出端口
-<<<<<<< HEAD
-		ptree node = xmlpt_.add("ReadPort", "");
-=======
 		ptree &node = xmlpt_.add("ReadPort", "");
->>>>>>> branch 'master' of https://github.com/salmingo/camagent.git
 		boost::format fmt("#%d.<xmlattr>.name");
 		const int len = 30;
 		char name[len];
@@ -325,52 +296,6 @@ void CameraAndorCCD::init_parameters() {
 	{// 读出速度
 		int ic, ir, i, n;
 		float rate;
-<<<<<<< HEAD
-		ptree node;
-		boost::format fmt1("ReadRate#%d-%d");
-		boost::format fmt2("#d.<xmlattr>.value");
-		boost::format fmt3("%f MHz");
-
-		for (ic = 0; ic < nchannel; ++ic) {// 遍历AD通道
-			for (ir = 0; ir < nAmp; ++ir) {// 遍历读出端口
-				GetNumberHSSpeeds(ic, ir, &n);
-				fmt1 % ic % ir;
-				node = xmlpt_.add(fmt1.str(), "");
-				node.add("<xmlattr>.number", n);
-				for (i = 0; i < n; ++i) {// 遍历读出速度
-					GetHSSpeed(ic, ir, i, &rate);
-					fmt2 % i;
-					fmt3 % rate;
-					node.add(fmt2.str(), fmt3.str());
-				}
-			}
-		}
-	}
-
-	{// 前置增益
-		boost::format fmt1("ReadRate#%d-%d.<xmlattr>.number");
-		boost::format fmt2("PreAmpGain#%d-%d-%d");
-		boost::format fmt3("#d.<xmlattr>.value");
-		ptree node;
-		int nRate, ic, ir, i, j, n;
-		float gain;
-
-		for (ic = 0; ic < nchannel; ++ic) {// 遍历: AD通道
-			SetADChannel(ic);
-			for (ir = 0; ir < nAmp; ++ir) {// 遍历: 读出端口
-				SetOutputAmplifier(ir);
-				fmt1 % ic % ir;
-				nRate = xmlpt_.get(fmt1.str(), 0);
-				for (i = 0; i < nRate; ++i) {// 遍历: 读出速度
-					SetHSSpeed(ir, i);
-					GetNumberPreAmpGains(&n);
-					fmt2 % ic % ir % i;
-					node = xmlpt_.add(fmt2.str(), "");
-					node.add("<xmlattr>.number", n);
-					for (j = 0; j < n; ++j) {// 遍历: 前置增益
-						GetPreAmpGain(j, &gain);
-						fmt3 % j;
-=======
 		boost::format fmt1("ReadRate#%d-%d");
 		boost::format fmt2("#%d.<xmlattr>.value");
 		boost::format fmt3("%f MHz");
@@ -415,7 +340,6 @@ void CameraAndorCCD::init_parameters() {
 						IsPreAmpGainAvailable(ic, ip, ir, ig, &avail);
 						GetPreAmpGain(ig, &gain);
 						node.add(fmt2.str(), bool(avail));
->>>>>>> branch 'master' of https://github.com/salmingo/camagent.git
 						node.add(fmt3.str(), gain);
 					}
 				}
@@ -460,10 +384,7 @@ void CameraAndorCCD::init_parameters() {
 		xmlpt_.add("ShutterTime.<xmlattr>.Open",  50);
 		xmlpt_.add("ShutterTime.<xmlattr>.Close", 50);
 	}
-<<<<<<< HEAD
-=======
 
 	xml_writer_settings<std::string> settings(' ', 4);
 	write_xml(andor_conf, xmlpt_, std::locale(), settings);
->>>>>>> branch 'master' of https://github.com/salmingo/camagent.git
 }
