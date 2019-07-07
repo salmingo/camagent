@@ -13,10 +13,13 @@
 #include "CDs9.h"
 #include "ConfigParam.h"
 #include "FilterCtrl.h"
+#include "CameraBase.h"
 #include "NTPClient.h"
 #include "tcpasio.h"
+#include "FlatField_Sky.h"
 
 typedef boost::shared_ptr<ConfigParameter> ParamPtr;
+typedef boost::shared_ptr<CDs9> CDs9Ptr;
 
 class cameracs : public MessageQueue {
 public:
@@ -24,8 +27,34 @@ public:
 	virtual ~cameracs();
 
 protected:
-	/* 成员变量 */
+	enum {// 消息
+		MSG_RECEIVE_GC = MSG_USER,		//< 收到来自总控服务器的信息
+		MSG_CLOSE_GC,		//< 总控服务器断开网络连接
+		MSG_CONNECT_GC,		//< 已建立与总控服务器的连接
+		MSG_LAST
+	};
+
+protected:
+	/*---- 成员变量 ----*/
+	/* 操作对象访问接口 */
 	ParamPtr param_;	//< 配置参数
+	TcpCPtr gtoaes_;	//< 总控服务器访问指针
+	CameraBasePtr camera_;	//< 相机访问指针
+	FilterCtrlPtr filter_;	//< 滤光片访问指针
+	NTPCliPtr ntp_;			//< NTP时钟同步
+	CDs9Ptr ds9_;			//< ds9访问指针
+	FlatField_Sky flatsky_;	//< 天光平场控制参数
+	//...缺文件服务器, 网络信息解析/封装接口
+
+	boost::shared_array<char> bufrcv_;	//< 网络信息存储区: 消息队列中调用
+
+	/* 线程 */
+	threadptr thrd_state_;	//< 向总控服务器发送相机工作状态
+	threadptr thrd_reconn_gtoaes_;	//< 重新连接总控服务器
+
+	/* 事件: 条件变量 */
+	boost::condition_variable cv_camstate_changed_;		//< 相机工作状态发生变化
+
 /////////////////////////////////////////////////////////////////////////////
 public:
 	// 接口函数
@@ -72,6 +101,55 @@ protected:
 
 /////////////////////////////////////////////////////////////////////////////
 protected:
+	/*!
+	 * @brief 回调函数: 处理来自gtoaes服务器的信息
+	 * @param addr TCPClient对象地址
+	 * @param ec   错误代码. 0: 接收到有效信息; !=0: 服务器断开连接
+	 */
+	void receive_gtoaes(const long, const long ec);
+	/*!
+	 * @brief 回调函数: 处理异步连接gtoaes服务器的结果
+	 * @param TCPClient对象地址
+	 * @param ec   错误代码. 0: 连接成功; !=0: 失败
+	 */
+	void connect_gtoaes(const long addr, const long ec);
+/////////////////////////////////////////////////////////////////////////////
+protected:
+	/* 消息机制 */
+	/*!
+	 * @brief 注册消息及其处理函数
+	 */
+	void register_message();
+	/*!
+	 * @brief 处理来自总控服务器的信息
+	 */
+	void on_receive_gc(const long addr, const long ec);
+	/*!
+	 * @brief 总控服务器断开连接
+	 */
+	void on_close_gc(const long addr, const long ec);
+	/*!
+	 * @brief 成功连接总控服务器
+	 * @note
+	 * 该消息处理: 在工作过程中, 与服务器网络连接异常断开后的重连
+	 */
+	void on_connect_gc(const long addr, const long ec);
+/////////////////////////////////////////////////////////////////////////////
+protected:
 	/* 多线程, 执行并行工作逻辑 */
+	/*!
+	 * @brief 定时向总控服务器发送系统工作状态
+	 * @note
+	 * 发送时间:
+	 * - 当相机工作状态发生变化时
+	 * - 周期: 10秒
+	 */
+	void thread_state();
+	/*!
+	 * @brief 重新连接总控服务器
+	 * @note
+	 * 周期: 2分钟
+	 */
+	void thread_reconn_gtoaes();
 };
 #endif /* SRC_CAMERACS_H_ */

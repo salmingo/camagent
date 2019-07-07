@@ -67,10 +67,11 @@ void MessageQueue::Stop() {
 	if (mq_.unique()) mq_.reset();
 }
 
-void MessageQueue::interrupt_thread(threadptr& thrd) {
+void MessageQueue::int_thread(threadptr& thrd) {
 	if (thrd.use_count()) {
 		thrd->interrupt();
 		thrd->join();
+		thrd.reset();
 	}
 }
 

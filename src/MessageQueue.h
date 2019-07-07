@@ -108,7 +108,7 @@ protected:
 	 * @brief 中止线程
 	 * @param thrd 线程指针
 	 */
-	void interrupt_thread(threadptr& thrd);
+	void int_thread(threadptr& thrd);
 	/*!
 	 * @brief 线程, 监测/响应消息
 	 */

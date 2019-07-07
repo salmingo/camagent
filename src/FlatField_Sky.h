@@ -72,10 +72,11 @@ public:
 template<class T>
 int asses_flat(T *data, int w, int h) {
 	double sum(0.0);
-	int x1 = w / 2 - 50;
-	int x2 = x1 + 100;
-	int y1 = h / 2 - 50;
-	int y2 = y1 + 100;
+	int ws = 100;	// 采用窗口宽度
+	int x1 = (w  - ws) / 2;
+	int x2 = x1 + ws;
+	int y1 = (h  - ws) / 2;
+	int y2 = y1 + ws;
 	int n = (x2 - x1) * (y2 - y1);
 	int x, y;
 	T *ptr;

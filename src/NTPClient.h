@@ -120,12 +120,12 @@ protected:
 	double       tSync_;		//< 修正本地时钟的最大时钟偏差
 	bool         autoSync_;	//< 是否自动修正时钟偏差
 };
-typedef boost::shared_ptr<NTPClient> NTPPtr; //< NTPclient指针
+typedef boost::shared_ptr<NTPClient> NTPCliPtr; //< NTPclient指针
 /*!
  * @brief 工厂函数, 生成新的NTPClient指针
  * @return
  * 指针创建结果
  */
-extern NTPPtr make_ntp(const char* hostIP, const uint16_t port, const int tSync);
+extern NTPCliPtr make_ntp(const char* hostIP, const uint16_t port, const int tSync);
 
 #endif /* NTPCLIENT_H_ */

@@ -26,7 +26,7 @@
 #define PREC		-6
 #define UINTMAX		4294967295.0
 
-NTPPtr make_ntp(const char* hostIP, const uint16_t port, const int tSync) {
+NTPCliPtr make_ntp(const char* hostIP, const uint16_t port, const int tSync) {
 	return boost::make_shared<NTPClient>(hostIP, port, tSync);
 }
 

@@ -399,27 +399,27 @@ protected:
 	 */
 	void int_thread(threadptr &thrd);
 };
-typedef boost::shared_ptr<CameraBase> cambase;
+typedef boost::shared_ptr<CameraBase> CameraBasePtr;
 
 /*!
- * @brief 将CameraBase继承类的boost::shared_ptr型指针转换为cambase类型
+ * @brief 将CameraBase继承类的boost::shared_ptr型指针转换为CameraBasePtr类型
  * @param camera 相机控制接口指针
  * @return
- * cambase类型指针
+ * CameraBasePtr类型指针
  */
 template <class T>
-cambase to_cambase(T camera) {
+CameraBasePtr to_cambase(T camera) {
 	return boost::static_pointer_cast<CameraBase>(camera);
 }
 
 /*!
- * @brief 将cambase类型指针转换为其继承类的boost::shared_ptr型指针
+ * @brief 将CameraBasePtr类型指针转换为其继承类的boost::shared_ptr型指针
  * @param camera 相机控制接口指针
  * @return
- * cambase继承类指针
+ * CameraBase继承类指针
  */
 template <class T>
-boost::shared_ptr<T> from_cambase(cambase camera) {
+boost::shared_ptr<T> from_cambase(CameraBasePtr camera) {
 	return boost::static_pointer_cast<T>(camera);
 }
 
