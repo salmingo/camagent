@@ -50,26 +50,27 @@ struct ConfigParameter {
 	// 相机制冷
 	bool coolalone;		//< 独立控制制冷
 	int coolset;		//< 制冷温度, 量纲: 摄氏度
-	uint coolport;		//< 独立控制制冷时的TCP端口
+	string coolip;		//< 独立温控服务器的IP地址
+	uint coolport;		//< 独立温控服务器的TCP端口
 	// 滤光片参数
-	bool filenable;	//< 启用滤光片
-	int filn;		//< 滤光片转轮数量
-	strvec filname;	//< 各位置滤光片名称
+	bool filenable;		//< 启用滤光片
+	int filn;			//< 滤光片转轮数量
+	strvec filname;		//< 各位置滤光片名称
 	// 光学系统参数
 	string telescope;	//< 望远镜名称
-	uint aptdia;		//< 主镜口径, 量纲: 厘米
+	int aptdia;			//< 主镜口径, 量纲: 厘米
 	string focus;		//< 焦点类型
-	uint foclen;		//< 焦距, 量纲: 毫米
+	int foclen;			//< 焦距, 量纲: 毫米
 	// 本地文件管理
 	string pathroot;	//< 本地文件存储目录名
 	uint fdmin;			//< 最小可用硬盘空间, 量纲: GB
 	// 图像是否显示
-	bool imgshow;	//< 图像显示标记
+	bool imgshow;		//< 图像显示标记
 	// 平场
-	uint ffminv;	//< 有效平场最小统计值
-	uint ffmaxv;	//< 有效平场最大统计值
-	uint ffmint;	//< 有效平场最短曝光时间, 量纲: 秒
-	uint ffmaxt;	//< 有效平场最长曝光时间, 量纲: 秒
+	int ffminv;		//< 有效平场最小统计值
+	int ffmaxv;		//< 有效平场最大统计值
+	int ffmint;		//< 有效平场最短曝光时间, 量纲: 秒
+	int ffmaxt;		//< 有效平场最长曝光时间, 量纲: 秒
 	// 设备在网络中的标志
 	string gid;		//< 组标志
 	string uid;		//< 单元标志
@@ -112,8 +113,9 @@ public:
 		node1.add("ReverseSaturation", 600);
 		// 相机制冷
 		pt.add("Cooler.<xmlattr>.Set", -40.0);
-		pt.add("Cooler.<xmlattr>.Alone", false);
-		pt.add("Cooler.<xmlattr>.Port", 4021);
+		pt.add("AloneCooler.<xmlattr>.enable", false);
+		pt.add("AloneCooler.<xmlattr>.IP",     "172.28.3.11");
+		pt.add("AloneCooler.<xmlattr>.Port",   4021);
 		// 滤光片参数
 		proptree::ptree &node2 = pt.add("Filter", "");
 		node2.add("<xmlattr>.Enable", false);
@@ -181,9 +183,12 @@ public:
 					tsat      = child.second.get("ReverseSaturation",            600);
 				}
 				else if (boost::iequals(child.first, "Cooler")) { // 相机制冷
-					coolalone = child.second.get("<xmlattr>.Alone", false);
 					coolset   = child.second.get("<xmlattr>.Set",   -40.0);
-					coolport  = child.second.get("<xmlattr>.Port",  4021);
+				}
+				else if (boost::iequals(child.first, "AloneCooler")) { // 相机制冷
+					coolalone = child.second.get("<xmlattr>.enable", false);
+					coolip    = child.second.get("<xmlattr>.ip",     "172.28.3.11");
+					coolport  = child.second.get("<xmlattr>.Port",   4021);
 				}
 				else if (boost::iequals(child.first, "Filter")) {
 					boost::format fmt("%d.<xmlattr>.Name");
